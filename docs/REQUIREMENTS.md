@@ -15,10 +15,10 @@ Items in the product list.
 
 - SKU (primary key)
 - name (text)
-- quantity unit (one of the: liter, kg, piece, pair)
 - description (text)
-- price (float)
+- quantity unit (one of the: liter, kg, piece, pair)
 - stock (positive integer)
+- price (positive integer, in cents)
 - updated (timestamp)
 
 ### Product highlight

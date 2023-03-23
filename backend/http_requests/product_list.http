@@ -1,0 +1,28 @@
+GET http://127.0.0.1:8000/products/
+Accept: application/json
+
+###
+
+GET http://127.0.0.1:8000/products/?page=2
+Accept: application/json
+
+###
+
+POST http://127.0.0.1:8000/products/
+Content-Type: application/json
+
+{
+  "name": "My test product",
+  "sku": "MY-0001",
+  "unit": "kg",
+  "stock": 2
+}
+
+###
+
+POST http://127.0.0.1:8000/products/
+Content-Type: application/json
+
+{
+  "stock": 2
+}
