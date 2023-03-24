@@ -748,3 +748,256 @@ With all of this in place, we can now test the view.
 
 NB: If you are using a JetBrains IDE, you can test it using the 
 `backend/htto_requests/product_list.http` file.
+
+# Day 3: Backend, continued
+
+Today we're adding the product details view, which handles the `/products/{id}`
+endpoint. Thanks to the work we've done yesterday, this is going to be quick.
+The view looks pretty much like the product list view, but instead of a 
+`MultipleOjbectMixin` we are using the `SingleObjectMixin`.
+
+```python
+class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
+    model = Product
+```
+
+The get method is simpler than the product list because this one does not 
+involve any pagination.
+
+```python
+class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
+    # ....
+    
+    def get(self, *args, **kwargs):
+        return {'data': self.get_object().to_dict()}
+```
+
+The `get_object()` method from the `SingleObjectMixin` will get the 
+product id from the URL, so we will need to make sure that the URL has a 
+segment named `pk`. (This can be customized, but we don't really need to. 
+It's our internal implementation detail not visible to the user.) We'll 
+update the model's validation code so that the `sku` field only contains 
+letters, numbers, and dashes. This is because it is intended to go into the 
+URL. We could technically encode the SKU for use in the URL, but it just 
+adds more code, and it's not necessary. Technically, SKU is a completely 
+arbitrary identifier, and technically vendors could use characters other 
+than the ones we specified, but this is an example app, so we won't go too 
+pedantic about these things.
+
+I've changed my mind about the `PUT` verb for this endpoint. Instead, I 
+will use `PATCH`. The difference is that `PUT` replaces the data with 
+request data, while `PATCH` updates the attributes contained in the request 
+data and keeps the rest as is. With `PATCH` we will be able to send requests 
+for updating individual fields without sending the whole product. So, the 
+`patch()` method looks like this:
+
+```python
+class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
+    # ....
+    
+    def patch(self, *args, **kwargs):
+        product = self.get_object()
+        data = self.get_json_body()
+        for k, v in data.items():
+            setattr(product, k, v)
+        try:
+            product.full_clean()
+            product.save(force_update=True)
+        except models.ValidationError:
+            raise SuspiciousOperation
+        return {'data': product.to_dict()}
+```
+
+As with the `get()` method, we are able to call `get_object()` to 
+retrieve the product record. We then iterate over the data sent by the 
+client and set the matching attributes. This means that if the data only has 
+one key, only one attribute is updated. Note that we allow the SKU to be 
+updated as well, even though it's the primary key.
+
+As with the `post()` method on the product list, we raise 
+`SuspiciousOperation` on validation failure.
+
+Finally, we return the updated record in whole.
+
+The last method we intended to implement on this endpoint is `delete()`:
+
+```python
+class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
+    # ....
+    
+    def delete(self, *args, **kwargs):
+        self.get_context_data()['object'].delete()
+        return {'data': None}
+```
+
+Out of sheer laziness, and the headache of choosing the correct response 
+code, we'll just use `{'data': None}` as the response payload. Data is gone, 
+poof! What this does for us is that we can have a single handler on the 
+client side that receives the response in `{data: ...}` format, and decides 
+whether to remove or update the row based on the value.
+
+Now we can add this view to our `products/urls.py` module:
+
+```python
+urlpatterns = [
+    # ....
+    path('products/<str:pk>', ProductDetails.as_view(), name='product_details'),
+]
+```
+
+The `backend/http_requests/product_details.http` file contains the HTTP 
+requests we used for testing.
+
+After testing, we've discovered that using the SKU as the primary key isn't 
+a very good idea if we want to allow the user to edit the SKU. Django will 
+either miss the update tyring to update a record with the *updated* SKU 
+(which does not yet exists) or it will create a new record and leave the old 
+one in place. We can work around this several ways:
+
+1. write some code to remove the existing record completely and save a new one
+2. not use SKU as the primary key
+
+The first option does not require dramatic changes to the database, and the 
+existing data can be kept as is. The disadvantage is that the cascading 
+update cannot be done. We would need to retrieve all related highlights 
+first, create a new object with the updated SKU, and then drop the old 
+record. And then we would need to point the retrieved highlights to point at 
+the new SKU and save them. It sounds quite inefficient compared to simply 
+updating the SKU field. In our case, we don't have any data in the database 
+yet, and it's not a production database, so we can live with just dropping 
+the whole database and redoing the schema from scratch. We'll make the 
+following changes to the `Product` model.
+
+We remove the `primary_key=True` option from the `sku` field and replace it 
+with `unique=True`:
+
+```python
+class Product(models.Model):
+    # ....
+    sku = models.CharField(max_length=12, unique=True, null=False, blank=False)
+    # ....
+```
+
+And we also add the `id` key to the dict generated in the `to_dict()` method:
+
+```python
+class Product(models.Model):
+    # ....
+    
+    def to_dict(self):
+        return {
+            'id': self.pk,
+            # ....
+        }
+```
+
+We then "drop" the database by removing the `db.sqlite3` file. We 
+also remove all existing migrations in the `products/migrations`. We then 
+create and run the new migrations:
+
+```shell
+python manage.py makemigrations
+python manake.py migrate
+```
+
+After this is done, we have a new empty database. We need to create the 
+admin user again, as we did before. We make one last twak to the `patch()` 
+method in `ProductDetails` view:
+
+```python
+class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
+    # ....
+    
+    def patch(self, *args, **kwargs):
+        # ....
+        for k, v in data.items():
+            if k in ['pk', 'id']:
+                continue
+            # ....
+        # ....
+```
+
+We make sure that `pk` and `id` keys in the request data are ignored.
+
+We test and make sure these changes work as expected.
+
+Next, we're going to work on the product highlights endpoint. This endpoint 
+has two verbs, `GET` and `PUT`. The `GET` verb simply retrieves a list of 
+highlights in the correct order. The `PUT` will required a bit more work as 
+we're replacing the whole table. (Having said that, it's just 10 rows max, 
+so not a huge deal.)
+
+As a matter of naming convention, we suffix list-based endpoints with `List`.
+So our view class is going to be:
+
+```python
+from .models import ProductHighlight
+
+
+class ProductHighlightList(JSONView, views.generic.list.MultipleObjectMixin):
+    model = ProductHighlight
+```
+
+The `get()` method simply returns a list of highlights in correct order. 
+We'll first add a `to_dict()` method to the model. In `products/models.py` 
+we make the following change:
+
+```python
+class ProductHighlight(models.Model):
+    # ....
+    
+    def to_dict(self):
+        return {
+            'id': self.pk,
+            'sku': self.product.sku,
+            'name': self.product.name,
+            'order': self.order,
+        }
+```
+
+For the `get()` method, we use a simpler logic than in the product list view 
+because we do not require any pagination. 
+
+```python
+class ProductHighlightList(JSONView, views.generic.list.MultipleObjectMixin):
+    # ....
+
+    def get(self, *args, **kwargs):
+        return {'data': [x.to_dict() for x in self.get_queryset()]}
+```
+
+Now we can focus on the `put()` method. This method receives a list of 
+highlights and replaces all existing rows with it. Let's take a look at it.
+
+```python
+from django import db
+
+
+class ProductHighlightList(JSONView, views.generic.list.MultipleObjectMixin):
+    # ....
+    
+    def put(self, *args, **kwargs):
+        data = self.get_json_body().get('data', []) or []
+        with db.transaction.atomic():
+            self.model.objects.all().delete()
+            if len(data):
+                highlights = []
+                for h in data:
+                    highlights.append(self.model(
+                        product_id=h['product_id'],
+                        order=h['order']
+                    ))
+                try:
+                    self.model.objects.bulk_create(highlights)
+                except (models.ValidationError, ValueError, db.utils.IntegrityError):
+                    raise SuspiciousOperation
+        return self.get(*args, **kwargs)
+```
+
+We are wrapping delete and bulk create operations in a transaction so that 
+they are both rolled back if bulk create fails. This is because, if we are 
+unable to cleanly replace the list, we want to keep the previous list of 
+highlights rather than end up with an empty one.
+
+If the request payload contains no items, or we receive a null instead of a 
+list, we assume that the user wants to delete the list.

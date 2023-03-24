@@ -1,0 +1,50 @@
+GET http://127.0.0.1:8000/highlights/
+Accept: application/json
+
+###
+
+PUT http://127.0.0.1:8000/highlights/
+Content-Type: application/json
+
+{
+  "data": [
+    { "product_id": 3, "order": 1 },
+    { "product_id": 2, "order": 2 },
+    { "product_id": 1, "order": 3 }
+  ]
+}
+
+###
+
+PUT http://127.0.0.1:8000/highlights/
+Content-Type: application/json
+
+{
+  "data": [
+    { "product_id": "bad", "order": 1 },
+    { "product_id": 3, "order": 2 },
+    { "product_id": 2, "order": 3 }
+  ]
+}
+
+###
+
+PUT http://127.0.0.1:8000/highlights/
+Content-Type: application/json
+
+{
+  "data": [
+    { "order": 1 },
+    { "product_id": 3, "order": 2 },
+    { "product_id": 2, "order": 3 }
+  ]
+}
+
+###
+
+PUT http://127.0.0.1:8000/highlights/
+Content-Type: application/json
+
+{
+  "data": null
+}

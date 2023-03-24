@@ -9,7 +9,7 @@ class Product(models.Model):
         ('pair', 'pair'),
     )
 
-    sku = models.CharField(max_length=12, primary_key=True, null=False, blank=False)
+    sku = models.CharField(max_length=12, unique=True, null=False, blank=False)
     name = models.TextField(null=False, blank=False)
     description = models.TextField(blank=True, null=True)
     unit = models.CharField(max_length=4, choices=UNIT_CHOICES)
@@ -19,6 +19,7 @@ class Product(models.Model):
 
     def to_dict(self):
         return {
+            'id': self.pk,
             'sku': self.sku,
             'name': self.name,
             'description': self.description,
@@ -42,6 +43,14 @@ class ProductHighlight(models.Model):
     @staticmethod
     def is_full(self):
         return self.objects.count() >= 10
+
+    def to_dict(self):
+        return {
+            'id': self.pk,
+            'sku': self.product.sku,
+            'name': self.product.name,
+            'order': self.order,
+        }
 
     class Meta:
         ordering = ['order']
