@@ -1001,3 +1001,124 @@ highlights rather than end up with an empty one.
 
 If the request payload contains no items, or we receive a null instead of a 
 list, we assume that the user wants to delete the list.
+
+# Day 4: Backend, continued
+
+Not a whole lot of time, so today we'll just implement the log-in and 
+log-out views as quickly as possible. As before, these are going to be 
+`JSONView` subclasses.
+
+We want to use a single endpoint:
+
+- /sessions/
+  - POST - create a new session (log in)
+  - DELETE - delete the current session (log out)
+
+First we want to create a separate app for it. Lacking a better name, we'll 
+use 'administrators'. We don't want to use names like 'auth' because that 
+might be confusing given that Django itself has an 'auth' module. We won't 
+use 'users' for the same reason.
+
+```shell
+(venv) python manage.py startapp administrators
+```
+
+Next we will add the new app to the list of installed apps in the 
+`product_list/settings.py` module.
+
+```python
+INSTALLED_APPS = [
+    # ....
+    'administrators.apps.AdministratorsConfig',
+]
+```
+
+We then create the new view class in the `administrators/views.py`:
+
+```python
+from helpers.views import JSONView
+
+
+class Sessions(JSONView):
+    http_method_names = ['post', 'delete']
+```
+
+We do not need any models as we are simply interacting with the Django's 
+built-in authentication API. Django already provides a LoginView, but we 
+will not use that as it is a very concrete view and not a lot of opportunity 
+for customization. Instead, we will adapt the example code from the 
+[documentation](https://docs.djangoproject.com/en/4.1/topics/auth/default/#how-to-log-a-user-in).
+
+```python
+from django.contrib.auth import authenticate, login
+from django.core.exceptions import SuspiciousOperation, PermissionDenied
+
+
+class Sessions(JSONView):
+    # ....
+
+    def post(self, *args, **kwargs):
+        try:
+            data = self.get_json_body()['data']
+            username = data['username']
+            password = data['password']
+        except KeyError:
+            raise SuspiciousOperation
+        user = authenticate(username=username, password=password)
+        if user is not None:
+            login(self.request, user)
+            return {'data': 'ok'}
+        else:
+            raise PermissionDenied
+```
+
+If the JSON is malformed in any way, we will raise a `SuspiciousOperation` 
+exception to cause Django to respond with 400. If authentication fails, we 
+raise the `PermissionDenied` exception, which will result in a 403 response.
+
+Otherwise, we log the user in and respond with `{'data': 'ok'}` payload. 
+Users do not really need any information they don't already have, so we are 
+not going to invent stuff. A simple 'ok' is fine.
+
+Django has sessions enabled by default. Logging the user using the `login()` 
+method will set a session cookie. This means that any requests the user 
+makes from this point on will include this cookie.
+
+For the `delete()` method, we will similarly use the example for the 
+[documentation](https://docs.djangoproject.com/en/4.1/topics/auth/default/#how-to-log-a-user-out).
+
+```python
+from django.contrib.auth import logout
+
+
+class Sessions(JSONView):
+    # ....
+
+    def delete(self, *args, **kwargs):
+        logout(self.request)
+        return {'data': 'ok'}
+```
+
+We can now map this view to a URL. We create a file, `administrators/urls.py`:
+
+```python
+from django.urls import path
+
+from .views import Sessions
+
+urlpatterns = [
+    path('login/', Sessions.as_view(), name='product_list'),
+]
+```
+
+We also include this module in the main `product_list/urls.py`.
+
+```python
+urlpatterns = [
+    # ....
+    path('', include('administrators.urls')),
+]
+```
+
+Now that we have the methods we need, we can test the implementation. The 
+`http_requests/sessions.http` contains the requests we use in order to test it.

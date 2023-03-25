@@ -1,0 +1,14 @@
+POST http://127.0.0.1:8000/sessions/
+Content-Type: application/json
+
+{
+  "data": {
+    "username": "admin",
+    "password": "admin"
+  }
+}
+
+###
+
+DELETE http://127.0.0.1:8000/sessions/
+Cookie: sessionid=bu3of5zqfbnfykuy0vhcaf4veftp7zs4
