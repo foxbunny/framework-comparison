@@ -1,16 +1,20 @@
-from django import views, db
+from django import db
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import SuspiciousOperation
 from django.forms import models
+from django.views.generic.detail import SingleObjectMixin
+from django.views.generic.list import MultipleObjectMixin
 
 from helpers.views import JSONView
 
 from .models import Product, ProductHighlight
 
 
-class ProductList(JSONView, views.generic.list.MultipleObjectMixin):
+class ProductList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
     model = Product
     http_method_names = ['get', 'post']
     paginate_by = 40
+    raise_exception = True
 
     def get(self, *args, **kwargs):
         self.object_list = self.get_queryset()
@@ -34,8 +38,9 @@ class ProductList(JSONView, views.generic.list.MultipleObjectMixin):
         return {'data': product.to_dict()}
 
 
-class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
+class ProductDetails(SingleObjectMixin, LoginRequiredMixin, JSONView):
     model = Product
+    raise_exception = True
 
     def get(self, *args, **kwargs):
         return {'data': self.get_object().to_dict()}
@@ -59,8 +64,9 @@ class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
         return {'data': None}
 
 
-class ProductHighlightList(JSONView, views.generic.list.MultipleObjectMixin):
+class ProductHighlightList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
     model = ProductHighlight
+    raise_exception = True
 
     def get(self, *args, **kwargs):
         return {'data': [x.to_dict() for x in self.get_queryset()]}

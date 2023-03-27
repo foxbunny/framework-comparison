@@ -1122,3 +1122,45 @@ urlpatterns = [
 
 Now that we have the methods we need, we can test the implementation. The 
 `http_requests/sessions.http` contains the requests we use in order to test it.
+
+# Day 5, Backend, finish
+
+The last bit of work we have to do on the backend is to protect the product 
+views from unauthorized access. Django already provides the 
+`LoginRequiredMixin` for this purpose, so we will use that. In 
+`products/views.py`, we make the following changes:
+
+```python
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+
+class ProductList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
+    # ....
+    raise_exception = True
+    # ....
+
+
+class ProductDetails(SingleObjectMixin, LoginRequiredMixin, JSONView):
+    # ....
+    raise_exception = True
+    # ....
+
+
+class ProductHighlightList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
+    # ....
+    raise_exception = True
+    # ....
+```
+
+Firstly, we fixed a mistake in the ordering of mixins and superclasses in 
+the class inheritance chain. I forgot that the superclass goes last, not first.
+With the inheritance chain corrected, the `dispatch()` overload in 
+`JSONView` should now correctly invoke the `dispatch()` method of the 
+`LoginRequiredMixin`.
+
+The `raise_exception` flag instructs the underlying mixin to throw a 
+`PermissionDenied` exception instead of redirecting to the login view.
+
+We then test the views to make sure a 403 response is returned when 
+requesting these resources without first logging in. Everything checks out, 
+so that concludes the minimal implementation of the backend.
