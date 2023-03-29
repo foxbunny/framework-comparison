@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core'
-import { HttpClient } from '@angular/common/http'
-import { Observable } from 'rxjs'
+import { HttpClient, HttpErrorResponse } from '@angular/common/http'
+import { Router } from '@angular/router'
+import { catchError, of, tap, throwError } from 'rxjs'
 
 import { SavedProduct } from './entities'
 
@@ -12,35 +13,52 @@ interface ProductListResponse {
   },
 }
 
+function createBlankResponse(): ProductListResponse {
+  return {
+    data: [],
+    page: {
+      current: 0,
+      total: 0,
+    }
+  }
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class ProductsService {
   productList: SavedProduct[] = []
-  currentPage = 1
-  totalPages = 1
+  currentPage = 0
+  totalPages = 0
 
-  constructor(private httpClient: HttpClient) { }
+  constructor(
+    private httpClient: HttpClient,
+    private router: Router,
+  ) { }
 
-  fetchProducts({ page = 1 }) {
-    return new Observable<number>(subscriber => {
-      this.httpClient.get<ProductListResponse>('http://127.0.0.1:8000/products/', {
-        responseType: 'json',
-        params: { page },
-      })
-        .subscribe({
-          next: data => {
-            this.productList = data.data
-            this.currentPage = data.page.current
-            this.totalPages = data.page.total
-            subscriber.next(0)
-            subscriber.complete()
-          },
-          error: err => {
-            subscriber.error(err.status)
-            subscriber.complete()
-          },
-        })
+  private handleUnauthorized() {
+    this.router.navigateByUrl('/login')
+  }
+
+  getProductList({ page = 1 }) {
+    return this.httpClient.get<ProductListResponse>('http://127.0.0.1:8000/products/', {
+      responseType: 'json',
+      params: { page },
     })
+      .pipe(
+        catchError((err: HttpErrorResponse) => {
+          if (err.status === 403) this.handleUnauthorized()
+          else {
+            console.error(err.message)
+            throwError(() => err)
+          }
+          return of(createBlankResponse())
+        }),
+        tap(data => {
+          this.productList = data.data
+          this.currentPage = data.page.current
+          this.totalPages = data.page.total
+        }),
+      )
   }
 }

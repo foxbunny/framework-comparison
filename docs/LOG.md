@@ -1408,3 +1408,248 @@ export class ProductListComponent implements OnInit {
   }
 }
 ```
+
+# Day 7, Angular
+
+The code we wrote yesterday isn't very good. There are two things that 
+bother me. First, the `fetchProducts()` method clearly doesn't fetch 
+products, but error codes. Secondly the error handling code is going to end 
+up being scattered all over the place if we have to repeat it for each endpoint.
+We need to rework the code.
+
+We'll make the `Router` service a dependency of the `ProductService`, and 
+move error handling to the service as well.
+
+First, we make the following changes to the service:
+
+```typescript
+// ....
+import { Router } from '@angular/router'
+import { catchError, of, tap, throwError } from 'rxjs'
+
+// ....
+
+function createBlankResponse(): ProductListResponse {
+  return {
+    data: [],
+    page: {
+      current: 0,
+      total: 0,
+    }
+  }
+}
+
+// ....
+export class ProductsService {
+  // ....
+  
+  constructor(
+    // ....
+    private router: Router,
+  ) { }
+
+  private handleUnauthorized() {
+    this.router.navigateByUrl('/login')
+  }
+  
+  getProductList({ page = 1 }) {
+    return this.httpClient.get<ProductListResponse>('http://127.0.0.1:8000/products/', {
+      responseType: 'json',
+      params: { page },
+    })
+      .pipe(
+        catchError((err: HttpErrorResponse) => {
+          if (err.status === 403) this.handleUnauthorized()
+          else throwError(() => err)
+          return of(createBlankResponse())
+        }),
+        tap(data => {
+          this.productList = data.data
+          this.currentPage = data.page.current
+          this.totalPages = data.page.total
+        }),
+      )
+  }
+}
+```
+
+We change the default values of `currentPage` and `totalPages` to 0. The 
+zero value will serve as a signal that we have not loaded any data. We 
+defined a function called `createBlankResponse()` which returns the reponse 
+that represent no data. We use that in case we run into errors.
+
+We rename the `fetchProducts()` method to `getProductList()` as we'll make 
+it actually do that.
+
+We import the `Router` service and make it a dependency of this service. It 
+doesn't feel entirely clean, but it looks better than what we had 
+yesterday. Secondly, we remove the outer `Observable` from the 
+`getProductList()` method, and re replace it with a pipe. 
+
+The pipe uses a `catchError()` operator to handle the redirect using the 
+private `handleUnauthorized()` method. It returns blank response data on error. 
+This eliminates special cases from the next step.
+
+The `tap()` operator is used to set the correct service properties, but will 
+otherwise pass the data on to the subscriber if needed.
+
+Overall the code now looks a lot more like it's supposed to. Now we move on 
+the `src/app/product-list/product-list.component.ts` module to address the 
+other side.
+
+```typescript
+import { ActivatedRoute } from '@angular/router'
+
+// ....
+
+export class ProductListComponent implements OnInit {
+  // ....
+  
+  constructor(
+    private productsService: ProductsService,
+    private route: ActivatedRoute,
+  ) {}
+  
+  ngOnInit() {
+    let params = this.route.snapshot.queryParams
+    this.productsService.getProductList({ page: Number(params['page']) })
+      .subscribe(() => {
+        this.productList = this.productsService.productList
+      })
+  }
+}
+```
+
+We've removed the `Router` from dependencies and also the associated import.
+We can also simplify the consumption of the `getProductList()` method. We fix 
+the type mismatch from yesterday by coercing the `page` parameter to a 
+number and fix its name (it was 'id' before). 
+
+We also switch it to use query parameters instead of path parameters. This is
+more idiomatic and semantically more correct. Query parameters select different
+views of the same resource, and our resource is a product list, not a specific
+page of the product list.
+
+The subscriber now does only one thing, which is update the `productList` 
+property of the component.
+
+There's still one little detail, which is the following line from the service:
+
+```typescript
+catchError(err => {
+  // ....
+  else throwError(() => err)
+  // ....
+})
+```
+
+This line will cause the service to throw an error, but that error is not 
+handled anywhere (yet). These are errors we don't (yet) know what to do with,
+so we are deliberately allowing them to break our code. We don't want to do 
+something arbitrary like silence and log. At some point in the future, we'll 
+likely have a toast service or something to notify the user of the error, 
+but, for now, we'll just let it propagate and throw an exception so we're 
+painfully aware of them.
+
+Now we can test whether all of this works. We'll set up routing and then try 
+to access the product list page. The routing is defined in the 
+`src/app/app-routing.module.ts` module.
+
+```typescript
+// ....
+
+import { ProductListComponent } from './product-list/product-list.component'
+
+const routes: Routes = [
+  { path: '', component: ProductListComponent },
+]
+
+// ....
+```
+
+We're also going to modify the application template in 
+`src/app/app.component.html` to look like this:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Product List Manager</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body>
+    <h1>Product list manager</h1>
+
+    <main>
+      <router-outlet></router-outlet>
+    </main>
+  </body>
+</html>
+```
+
+We'll stub out the login component so we can test the redirect.
+
+```shell
+npm run ng generate component login
+```
+
+Then we add this component to the routing table in 
+`src/app/app-routing.module.ts`:
+
+```typescript
+// ....
+import { LoginComponent } from './login/login.component'
+
+const routes: Routes = [
+  // ....
+  { path: 'login', component: LoginComponent },
+]
+```
+
+Before we test this, there's one thing we forgot to do, which is to allow 
+CORS in the backend. Switching to the backend directory we do:
+
+```shell
+venv\Scripts\activate.bat
+# on Linux/Mac: source venv/bin/activate
+(venv) pip install django-cors-headers
+(venv) pip freeze > requirements.txt
+```
+
+In the `product_list/settings.py` module, we make the following changes:
+
+```python
+INSTALLED_APPS = [
+    # ....
+    'corsheaders',
+    'products.apps.ProductsConfig',
+    'administrators.apps.AdministratorsConfig',
+]
+
+# ....
+
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    # ....
+]
+
+# ....
+
+CORS_ORIGIN_ALLOW_ALL = True
+```
+
+We bring up the backend:
+
+```shell
+(venv) python manage.py runserver
+```
+
+and ten the angular dev server
+
+```shell
+npm run start
+```
+
+When we visit the root page, we are immediately redirected to `/login`. We 
+are good to go.
