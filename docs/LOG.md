@@ -1164,3 +1164,247 @@ The `raise_exception` flag instructs the underlying mixin to throw a
 We then test the views to make sure a 403 response is returned when 
 requesting these resources without first logging in. Everything checks out, 
 so that concludes the minimal implementation of the backend.
+
+# Day 6, Angular
+
+We start by planning our application. The first thing we want to define is 
+our domain model. The example app is relatively simple, and it only has two 
+entities, a product and a product highlights list.
+
+We create a module that will hold our interfaces. Let's name it "entities" 
+and place it into the `src/app` directory.
+
+First, we have a few numeric fields that we know are stored as 
+`PositiveIntegerField` in the database. While that's a useful distinction 
+for storage purposes, we have to think whether we also need to make the same 
+distinction in our model. Sure it is more *accurate*, but pragmatically, do 
+we have any operations that are likely to fail if we don't distinguish 
+between positive and negative values. Since it does not appear (right now) 
+that that would be the case, we will use `number` for fields like `stock` 
+and `price`.
+
+We are going to use a separate type for the units. Unit represents a set of 
+strings we can use to denote units. This is more likely to be useful in our app.
+
+```typescript
+export type Unit = 'kg' | 'l' | 'pc' | 'pair';
+```
+
+The interface for the `Product` objects looks like this:
+
+```typescript
+export interface Product {
+  name: string,
+  description: string | null,
+  sku: string,
+  unit: Unit,
+  stock: number,
+  price: number,
+}
+```
+
+Now each product has an `id` field, but not always. We have to decide 
+whether we would like to have a nullable `id` field in the `Product` 
+interface, or have a subtype that has that field. The latter approach is 
+probably closer to the domain model, so we'll go with that for now.
+
+```typescript
+export interface SavedProduct extends Product {
+  id: number,
+}
+```
+
+As long as our code is good about using the correct version of `Product`, we 
+should be able to catch cases where the code assumes there's an `id` but it 
+isn't really there (well, for the most part).
+
+We are not prefixing the interface name with an "I" as that's how it is done 
+in the official Angular documentation, and we are wanting to write idiomatic 
+code.
+
+Next we'll define an interface for a product highlight item.
+
+```typescript
+export interface ProductHighlight {
+  id?: number,
+  productId: number,
+  order: number,
+}
+```
+
+As with the product, we have a special case of `ProductHighlight` that 
+represents a saved version. However, it does not look like we would actually 
+benefit from having a separate interface for it. Instead, we opted for an
+optional `id` field.
+
+For now, we will not bother creating a separate administrator model, as 
+that's only going to be used in the log-in form.
+
+We will proceed to create the products service.
+
+First we edit the `src/app/app.module.ts` and add the `HttpClientModule` 
+injector to the list of imports:
+
+```typescript
+// ....
+import { HttpClientModule } from '@angular/common/http'
+
+@NgModule({
+  // ....
+  imports: [
+    // ....
+    HttpClientModule,
+    // ....
+  ],
+```
+
+This will allow us to use the `HttpClient` service in our own service.
+
+Before we go further, we want to pause and decide how we want our service to 
+work. We know that the service uses an endpoint that is login-protected. If 
+the user isn't authenticated, we will receive a 403 response whatever we do. 
+In that case, we want to redirect the user to the login view. The redirect 
+is not a concern that we want to handle in this service as it's not part of 
+the business logic, but we need some information passed to the service's 
+consumer (component) so that it can perform the redirect.
+
+We could create a separate service for handling permission errors. However, 
+this will not give the products service an opportunity to store information 
+about incomplete requests. Therefore, we will not abstract error handling.
+
+As far as the concrete functionality of the service goes, we need to be able to:
+
+- Get a list of paginated products
+- Update a specific saved product
+- Create a new product
+
+```shell
+npm run ng generate service products
+
+CREATE src/app/products.service.spec.ts (367 bytes)
+CREATE src/app/products.service.ts (137 bytes)
+```
+
+In the `src/app/products.service.ts` we add the following:
+
+```typescript
+// ....
+import { HttpClient } from '@angular/common/http'
+
+import { SavedProduct } from './entities'
+
+// ....
+export class ProductsService {
+  productList: SavedProduct[] = []
+  currentPage = 1
+  totalPages = 1
+
+  constructor(private httpClient: HttpClient) { }
+}
+```
+
+We implement the method to fetch the products. This method will update the 
+`productList`, `currentPage` and `totalPages` properties using the response 
+data, and return a observable that emits the error code. The error code 0 is 
+used to indicate no errors. It takes a set of named parameters, which will 
+only have a `page` key for now. We will add sorting and filtering to this later,
+but that requires changes in the backend.
+
+Before we implement this method, we'll define an interface for the response 
+data. In the same module we define:
+
+```typescript
+interface ProductListResponse {
+  data: Array<SavedProduct>,
+  page: {
+    current: number,
+    total: number,
+  },
+}
+```
+
+We can now implement the method:
+
+```typescript
+export class ProductsService {
+  // ....
+  
+  fetchProducts({ page = 1 }) {
+    return new Observable<number>(subscriber => {
+      this.httpClient.get<ProductListResponse>('http://127.0.0.1:8000/products/', {
+        responseType: 'json',
+        params: { page },
+      })
+        .subscribe({
+          next: data => {
+            this.productList = data.data
+            this.currentPage = data.page.current
+            this.totalPages = data.page.total
+            subscriber.next(0)
+            subscriber.complete()
+          },
+          error: err => {
+            subscriber.error(err.status)
+            subscriber.complete()
+          },
+        })
+    })
+  }
+}
+```
+
+Angular uses RxJS under the hood, rather than the standard `fetch()` call. 
+With RxJS, once the observable is subscribed to, it cannot be chained to 
+anymore. Thus, we wrap it in a new `Observable` instance so that the caller 
+can observe the end of the transaction. The inner observable will emit the 
+error codes for the outer observable.
+
+We generate the product list component just to check how our service feels 
+when integrated (not testing it yet).
+
+```shell
+npm run ng generate component product-list
+```
+
+We import the product service and make the following changes in the 
+`src/app/product-list/product-list.component.ts`:
+
+```typescript
+import { Component, OnInit } from '@angular/core'
+
+import { ProductsService } from '../products.service'
+import { ActivatedRoute, Router } from '@angular/router'
+
+// ....
+export class ProductListComponent implements OnInit {
+  productList = this.productsService.productList
+
+  constructor(
+    private productsService: ProductsService,
+    private route: ActivatedRoute,
+    private router: Router
+  ) {}
+}
+```
+
+When the component initializes, we want to update the product list. For this,
+we implement the `ngOnInit()` hook.
+
+```typescript
+export class ProductListComponent implements OnInit {
+  // ....
+
+  ngOnInit() {
+    let params = this.route.snapshot.paramMap
+    this.productsService.fetchProducts({ page: params.get('id') })
+      .subscribe({
+        next: () => {
+          this.productList = this.productsService.productList
+        },
+        err: err => {
+          if (err.status === 403) this.router.navigateByUrl('/login')
+        },
+      })
+  }
+}
+```
