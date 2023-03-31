@@ -4,6 +4,7 @@ import { Router } from '@angular/router'
 import { catchError, of, tap, throwError } from 'rxjs'
 
 import { SavedProduct } from './entities'
+import envinfo from './envinfo'
 
 interface ProductListResponse {
   data: Array<SavedProduct>,
@@ -41,8 +42,9 @@ export class ProductsService {
   }
 
   getProductList({ page = 1 }) {
-    return this.httpClient.get<ProductListResponse>('http://127.0.0.1:8000/products/', {
+    return this.httpClient.get<ProductListResponse>(`${envinfo.API}/products/`, {
       responseType: 'json',
+      withCredentials: true,
       params: { page },
     })
       .pipe(

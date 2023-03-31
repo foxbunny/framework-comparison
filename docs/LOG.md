@@ -371,8 +371,8 @@ INSTALLED_APPS = [
 ]
 ```
 
-First we'll take care of the `Product` model. In the `products/model.py` I 
-write this bit of OOP loveliness:
+First we'll take care of the `Product` model. In the `products/model.py` I write
+this bit of OOP loveliness:
 
 ```python
 class Product(models.Model):
@@ -419,8 +419,8 @@ Bypass password validation and create user anyway? [y/N]: y
 
 Remember, always use a long secure password. 😋
 
-The admin shows the big textarea control for the `name` field as we've 
-declared it a `model.TextField()`. We will fix this in the `products/admin.py`:
+The admin shows the big textarea control for the `name` field as we've declared
+it a `model.TextField()`. We will fix this in the `products/admin.py`:
 
 ```python
 from django.contrib import admin
@@ -441,12 +441,12 @@ class ProductAdmin(admin.ModelAdmin):
     form = ProductAdminForm
 ```
 
-Essentially, we created a custom model form for the admin interface and 
-supplied a `forms.CharField()` override for the `name` field. The field now 
-looks as it should.
+Essentially, we created a custom model form for the admin interface and supplied
+a `forms.CharField()` override for the `name` field. The field now looks as it
+should.
 
-Next, we want to create the `ProdcutHighlight` model. Back in 
-`products/models.py` we write start by adding the model and the two fields we 
+Next, we want to create the `ProdcutHighlight` model. Back in
+`products/models.py` we write start by adding the model and the two fields we
 know we're going to need.
 
 ```python
@@ -458,8 +458,8 @@ class ProductHighlight(models.Model):
         ordering = ['order']
 ```
 
-The `order` column is marked as `unique`. We also specify that we would like 
-the order to be by the `order` column (ascending).
+The `order` column is marked as `unique`. We also specify that we would like the
+order to be by the `order` column (ascending).
 
 We have a 10-row constraint on this table. We'll make this task a bit easier by
 adding a static method that will give us the information we need:
@@ -473,15 +473,15 @@ class ProductHighlight(models.Model):
         return self.objects.count() >= 10
 ```
 
-This allows the view to say something like `ProductHighlight.is_full()`. 
-Time to run the migrations:
+This allows the view to say something like `ProductHighlight.is_full()`. Time to
+run the migrations:
 
 ```shell
 (venv) python manage.py makemigrations products
 (venv) python manage.py migrate
 ```
 
-We'll just register this model with the admin for now and won't customize 
+We'll just register this model with the admin for now and won't customize
 anything. In `products/admin.py` we add:
 
 ```python
@@ -503,22 +503,22 @@ Moving on to the views. We'll have (for now) 3 endpoints:
   - GET - get all product highlights
   - PUT - update the highlights
 
-We're going to assume that we won't need to be dealing with individual 
-highlights. In the UI we always work with the highlights as a list. We use 
-the `GET` method to retrieve the list, and we use the `PUT` method to update 
-the list.
+We're going to assume that we won't need to be dealing with individual
+highlights. In the UI we always work with the highlights as a list. We use
+the `GET` method to retrieve the list, and we use the `PUT` method to update the
+list.
 
-We've implemented a class-based base view called `JSONView` in the 
-`helpers/views.py` to serve as the base view for all endpoints. This will 
-probably be an issue later when we start supporting both JSON and HTML 
+We've implemented a class-based base view called `JSONView` in the
+`helpers/views.py` to serve as the base view for all endpoints. This will
+probably be an issue later when we start supporting both JSON and HTML
 responses, but we'll worry about it then.
 
-The `JSONView` is a `views.generic.base.View` subclass and is responsible 
-for serializing responses and deserializing request bodies. It allows 
-verb-specific methods to return a Python dict and takes care of sending an 
-appropriate JSON response.
+The `JSONView` is a `views.generic.base.View` subclass and is responsible for
+serializing responses and deserializing request bodies. It allows verb-specific
+methods to return a Python dict and takes care of sending an appropriate JSON
+response.
 
-To serialize the JSON, we use a custom JSON encoder class. For now, it 
+To serialize the JSON, we use a custom JSON encoder class. For now, it
 transforms the `datetime` objects to UNIX timestamps in milliseconds.
 
 ```python
@@ -537,8 +537,8 @@ class CustomEncoder(JSONEncoder):
             return o.__dict__
 ```
 
-The base view implements a `dump_json()` method which provides the default 
-way of encoding JSON:
+The base view implements a `dump_json()` method which provides the default way
+of encoding JSON:
 
 ```python
 from django import views
@@ -549,11 +549,12 @@ class JSONView(views.generic.base.View):
         return dumps(data, cls=CustomEncoder)
 ```
 
-We also implement a separate `render_to_json()` method which converts the 
-JSON string into a response:
+We also implement a separate `render_to_json()` method which converts the JSON
+string into a response:
 
 ```python
 from django.http import HttpResponse
+
 
 class JSONView(views.generic.base.View):
     # ....
@@ -563,9 +564,9 @@ class JSONView(views.generic.base.View):
                             content_type='application/json')
 ```
 
-This method is invoked from `render_to_response(self, ctx)`. We keep this 
-method separate so that, once we start returning HTML as well, we have a 
-good place to implement the choice of output format.
+This method is invoked from `render_to_response(self, ctx)`. We keep this method
+separate so that, once we start returning HTML as well, we have a good place to
+implement the choice of output format.
 
 ```python
 class JSONView(views.generic.base.View):
@@ -590,8 +591,8 @@ class JSONView(views.generic.base.View):
         return self.render_to_json(ctx)
 ```
 
-The `dispatch()` method is marked as CSRF-exempt for now, so we don't need 
-to deal with CSRF client-side. We'll restore CSRF protection later.
+The `dispatch()` method is marked as CSRF-exempt for now, so we don't need to
+deal with CSRF client-side. We'll restore CSRF protection later.
 
 Lastly, we provide a method for converting JSON bodies:
 
@@ -611,13 +612,13 @@ class JSONView(views.generic.base.View):
             raise SuspiciousOperation
 ```
 
-The `SuspiciousOperation` exception cases Django to return a 
+The `SuspiciousOperation` exception cases Django to return a
 `HttpResponseBadRequest` error.
 
-With the base view in place, we can implement the first view that would 
-handle `GET /products/` and `POST /products/` endpoints. In addition to the 
-base view, we also use a `view.generic.list.MultipleObjectMixin` which is 
-responsible for managing paginated lists of database records.
+With the base view in place, we can implement the first view that would
+handle `GET /products/` and `POST /products/` endpoints. In addition to the base
+view, we also use a `view.generic.list.MultipleObjectMixin` which is responsible
+for managing paginated lists of database records.
 
 ```python
 from django import views
@@ -634,16 +635,16 @@ class ProductList(JSONView, views.generic.list.MultipleObjectMixin):
 ```
 
 We start by specifying the model. This is used by the `MultipleObjectMixin`. We
-also specify that we only support GET and POST for this view. The page size 
-is (for now) hard-coded to 40 records per page.
+also specify that we only support GET and POST for this view. The page size is (
+for now) hard-coded to 40 records per page.
 
-We also need to add one more thing to the model, which is a method 
-that converts it into a plain dict:
+We also need to add one more thing to the model, which is a method that converts
+it into a plain dict:
 
 ```python
 class Product(models.Model):
     # ....
-    
+
     def to_dict(self):
         return {
             'sku': self.sku,
@@ -656,7 +657,7 @@ class Product(models.Model):
         }
 ```
 
-With the correct base views and mixins, we can trivially implement the `get()` 
+With the correct base views and mixins, we can trivially implement the `get()`
 method:
 
 ```python
@@ -675,16 +676,18 @@ class ProductList(JSONView, views.generic.list.MultipleObjectMixin):
         }
 ```
 
-We use the `get_queryset()` and `get_context_data()` from the 
-`MultipleOjbectMixin` to retrieve the records and also take care of the 
-pagination. Then we transform this data into the desired output for 
-JSON response.
+We use the `get_queryset()` and `get_context_data()` from the
+`MultipleOjbectMixin` to retrieve the records and also take care of the
+pagination. Then we transform this data into the desired output for JSON
+response.
 
 The data has the following layout:
 
 ```json
 {
-  "data": [Product],
+  "data": [
+    Product
+  ],
   "page": {
     "current": (number),
     "total": (number)
@@ -703,7 +706,7 @@ from .models import Product
 
 class ProductList(JSONView, views.generic.list.MultipleObjectMixin):
     # ....
-    
+
     def post(self, *args, **kwargs):
         product_details = self.get_json_body()
         product = Product(**product_details)
@@ -715,12 +718,12 @@ class ProductList(JSONView, views.generic.list.MultipleObjectMixin):
         return {'data': product.to_dict()}
 ```
 
-We fist grab the decoded JSON body, and we populate the model object. Then 
-we validate and save it. If there are validation errors, then we throw a 
-`SuspiciousOperation` exception. If all goes well, we return the product 
-details including the timestamp.
+We fist grab the decoded JSON body, and we populate the model object. Then we
+validate and save it. If there are validation errors, then we throw a
+`SuspiciousOperation` exception. If all goes well, we return the product details
+including the timestamp.
 
-We then hook the views up using url configuration. In `products/urls.py` 
+We then hook the views up using url configuration. In `products/urls.py`
 (created), we add:
 
 ```python
@@ -744,16 +747,16 @@ urlpatterns = [
 ]
 ```
 
-With all of this in place, we can now test the view. 
+With all of this in place, we can now test the view.
 
-NB: If you are using a JetBrains IDE, you can test it using the 
+NB: If you are using a JetBrains IDE, you can test it using the
 `backend/htto_requests/product_list.http` file.
 
 # Day 3: Backend, continued
 
 Today we're adding the product details view, which handles the `/products/{id}`
 endpoint. Thanks to the work we've done yesterday, this is going to be quick.
-The view looks pretty much like the product list view, but instead of a 
+The view looks pretty much like the product list view, but instead of a
 `MultipleOjbectMixin` we are using the `SingleObjectMixin`.
 
 ```python
@@ -761,40 +764,39 @@ class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
     model = Product
 ```
 
-The get method is simpler than the product list because this one does not 
+The get method is simpler than the product list because this one does not
 involve any pagination.
 
 ```python
 class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
     # ....
-    
+
     def get(self, *args, **kwargs):
         return {'data': self.get_object().to_dict()}
 ```
 
-The `get_object()` method from the `SingleObjectMixin` will get the 
-product id from the URL, so we will need to make sure that the URL has a 
-segment named `pk`. (This can be customized, but we don't really need to. 
-It's our internal implementation detail not visible to the user.) We'll 
-update the model's validation code so that the `sku` field only contains 
-letters, numbers, and dashes. This is because it is intended to go into the 
-URL. We could technically encode the SKU for use in the URL, but it just 
-adds more code, and it's not necessary. Technically, SKU is a completely 
-arbitrary identifier, and technically vendors could use characters other 
-than the ones we specified, but this is an example app, so we won't go too 
-pedantic about these things.
+The `get_object()` method from the `SingleObjectMixin` will get the product id
+from the URL, so we will need to make sure that the URL has a segment named `pk`
+. (This can be customized, but we don't really need to. It's our internal
+implementation detail not visible to the user.) We'll update the model's
+validation code so that the `sku` field only contains letters, numbers, and
+dashes. This is because it is intended to go into the URL. We could technically
+encode the SKU for use in the URL, but it just adds more code, and it's not
+necessary. Technically, SKU is a completely arbitrary identifier, and
+technically vendors could use characters other than the ones we specified, but
+this is an example app, so we won't go too pedantic about these things.
 
-I've changed my mind about the `PUT` verb for this endpoint. Instead, I 
-will use `PATCH`. The difference is that `PUT` replaces the data with 
-request data, while `PATCH` updates the attributes contained in the request 
-data and keeps the rest as is. With `PATCH` we will be able to send requests 
-for updating individual fields without sending the whole product. So, the 
+I've changed my mind about the `PUT` verb for this endpoint. Instead, I will
+use `PATCH`. The difference is that `PUT` replaces the data with request data,
+while `PATCH` updates the attributes contained in the request data and keeps the
+rest as is. With `PATCH` we will be able to send requests for updating
+individual fields without sending the whole product. So, the
 `patch()` method looks like this:
 
 ```python
 class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
     # ....
-    
+
     def patch(self, *args, **kwargs):
         product = self.get_object()
         data = self.get_json_body()
@@ -808,13 +810,13 @@ class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
         return {'data': product.to_dict()}
 ```
 
-As with the `get()` method, we are able to call `get_object()` to 
-retrieve the product record. We then iterate over the data sent by the 
-client and set the matching attributes. This means that if the data only has 
-one key, only one attribute is updated. Note that we allow the SKU to be 
-updated as well, even though it's the primary key.
+As with the `get()` method, we are able to call `get_object()` to retrieve the
+product record. We then iterate over the data sent by the client and set the
+matching attributes. This means that if the data only has one key, only one
+attribute is updated. Note that we allow the SKU to be updated as well, even
+though it's the primary key.
 
-As with the `post()` method on the product list, we raise 
+As with the `post()` method on the product list, we raise
 `SuspiciousOperation` on validation failure.
 
 Finally, we return the updated record in whole.
@@ -824,17 +826,17 @@ The last method we intended to implement on this endpoint is `delete()`:
 ```python
 class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
     # ....
-    
+
     def delete(self, *args, **kwargs):
         self.get_context_data()['object'].delete()
         return {'data': None}
 ```
 
-Out of sheer laziness, and the headache of choosing the correct response 
-code, we'll just use `{'data': None}` as the response payload. Data is gone, 
-poof! What this does for us is that we can have a single handler on the 
-client side that receives the response in `{data: ...}` format, and decides 
-whether to remove or update the row based on the value.
+Out of sheer laziness, and the headache of choosing the correct response code,
+we'll just use `{'data': None}` as the response payload. Data is gone, poof!What
+this does for us is that we can have a single handler on the client side that
+receives the response in `{data: ...}` format, and decides whether to remove or
+update the row based on the value.
 
 Now we can add this view to our `products/urls.py` module:
 
@@ -845,30 +847,29 @@ urlpatterns = [
 ]
 ```
 
-The `backend/http_requests/product_details.http` file contains the HTTP 
-requests we used for testing.
+The `backend/http_requests/product_details.http` file contains the HTTP requests
+we used for testing.
 
-After testing, we've discovered that using the SKU as the primary key isn't 
-a very good idea if we want to allow the user to edit the SKU. Django will 
-either miss the update tyring to update a record with the *updated* SKU 
-(which does not yet exists) or it will create a new record and leave the old 
-one in place. We can work around this several ways:
+After testing, we've discovered that using the SKU as the primary key isn't a
+very good idea if we want to allow the user to edit the SKU. Django will either
+miss the update tyring to update a record with the *updated* SKU
+(which does not yet exists) or it will create a new record and leave the old one
+in place. We can work around this several ways:
 
 1. write some code to remove the existing record completely and save a new one
 2. not use SKU as the primary key
 
-The first option does not require dramatic changes to the database, and the 
-existing data can be kept as is. The disadvantage is that the cascading 
-update cannot be done. We would need to retrieve all related highlights 
-first, create a new object with the updated SKU, and then drop the old 
-record. And then we would need to point the retrieved highlights to point at 
-the new SKU and save them. It sounds quite inefficient compared to simply 
-updating the SKU field. In our case, we don't have any data in the database 
-yet, and it's not a production database, so we can live with just dropping 
-the whole database and redoing the schema from scratch. We'll make the 
-following changes to the `Product` model.
+The first option does not require dramatic changes to the database, and the
+existing data can be kept as is. The disadvantage is that the cascading update
+cannot be done. We would need to retrieve all related highlights first, create a
+new object with the updated SKU, and then drop the old record. And then we would
+need to point the retrieved highlights to point at the new SKU and save them. It
+sounds quite inefficient compared to simply updating the SKU field. In our case,
+we don't have any data in the database yet, and it's not a production database,
+so we can live with just dropping the whole database and redoing the schema from
+scratch. We'll make the following changes to the `Product` model.
 
-We remove the `primary_key=True` option from the `sku` field and replace it 
+We remove the `primary_key=True` option from the `sku` field and replace it
 with `unique=True`:
 
 ```python
@@ -883,7 +884,7 @@ And we also add the `id` key to the dict generated in the `to_dict()` method:
 ```python
 class Product(models.Model):
     # ....
-    
+
     def to_dict(self):
         return {
             'id': self.pk,
@@ -891,23 +892,23 @@ class Product(models.Model):
         }
 ```
 
-We then "drop" the database by removing the `db.sqlite3` file. We 
-also remove all existing migrations in the `products/migrations`. We then 
-create and run the new migrations:
+We then "drop" the database by removing the `db.sqlite3` file. We also remove
+all existing migrations in the `products/migrations`. We then create and run the
+new migrations:
 
 ```shell
 python manage.py makemigrations
 python manake.py migrate
 ```
 
-After this is done, we have a new empty database. We need to create the 
-admin user again, as we did before. We make one last twak to the `patch()` 
+After this is done, we have a new empty database. We need to create the admin
+user again, as we did before. We make one last twak to the `patch()`
 method in `ProductDetails` view:
 
 ```python
 class ProductDetails(JSONView, views.generic.detail.SingleObjectMixin):
     # ....
-    
+
     def patch(self, *args, **kwargs):
         # ....
         for k, v in data.items():
@@ -921,14 +922,13 @@ We make sure that `pk` and `id` keys in the request data are ignored.
 
 We test and make sure these changes work as expected.
 
-Next, we're going to work on the product highlights endpoint. This endpoint 
-has two verbs, `GET` and `PUT`. The `GET` verb simply retrieves a list of 
-highlights in the correct order. The `PUT` will required a bit more work as 
-we're replacing the whole table. (Having said that, it's just 10 rows max, 
-so not a huge deal.)
+Next, we're going to work on the product highlights endpoint. This endpoint has
+two verbs, `GET` and `PUT`. The `GET` verb simply retrieves a list of highlights
+in the correct order. The `PUT` will required a bit more work as we're replacing
+the whole table. (Having said that, it's just 10 rows max, so not a huge deal.)
 
-As a matter of naming convention, we suffix list-based endpoints with `List`.
-So our view class is going to be:
+As a matter of naming convention, we suffix list-based endpoints with `List`. So
+our view class is going to be:
 
 ```python
 from .models import ProductHighlight
@@ -938,14 +938,14 @@ class ProductHighlightList(JSONView, views.generic.list.MultipleObjectMixin):
     model = ProductHighlight
 ```
 
-The `get()` method simply returns a list of highlights in correct order. 
-We'll first add a `to_dict()` method to the model. In `products/models.py` 
+The `get()` method simply returns a list of highlights in correct order. We'll
+first add a `to_dict()` method to the model. In `products/models.py`
 we make the following change:
 
 ```python
 class ProductHighlight(models.Model):
     # ....
-    
+
     def to_dict(self):
         return {
             'id': self.pk,
@@ -955,8 +955,8 @@ class ProductHighlight(models.Model):
         }
 ```
 
-For the `get()` method, we use a simpler logic than in the product list view 
-because we do not require any pagination. 
+For the `get()` method, we use a simpler logic than in the product list view
+because we do not require any pagination.
 
 ```python
 class ProductHighlightList(JSONView, views.generic.list.MultipleObjectMixin):
@@ -966,7 +966,7 @@ class ProductHighlightList(JSONView, views.generic.list.MultipleObjectMixin):
         return {'data': [x.to_dict() for x in self.get_queryset()]}
 ```
 
-Now we can focus on the `put()` method. This method receives a list of 
+Now we can focus on the `put()` method. This method receives a list of
 highlights and replaces all existing rows with it. Let's take a look at it.
 
 ```python
@@ -975,7 +975,7 @@ from django import db
 
 class ProductHighlightList(JSONView, views.generic.list.MultipleObjectMixin):
     # ....
-    
+
     def put(self, *args, **kwargs):
         data = self.get_json_body().get('data', []) or []
         with db.transaction.atomic():
@@ -989,23 +989,24 @@ class ProductHighlightList(JSONView, views.generic.list.MultipleObjectMixin):
                     ))
                 try:
                     self.model.objects.bulk_create(highlights)
-                except (models.ValidationError, ValueError, db.utils.IntegrityError):
+                except (
+                models.ValidationError, ValueError, db.utils.IntegrityError):
                     raise SuspiciousOperation
         return self.get(*args, **kwargs)
 ```
 
-We are wrapping delete and bulk create operations in a transaction so that 
-they are both rolled back if bulk create fails. This is because, if we are 
-unable to cleanly replace the list, we want to keep the previous list of 
-highlights rather than end up with an empty one.
+We are wrapping delete and bulk create operations in a transaction so that they
+are both rolled back if bulk create fails. This is because, if we are unable to
+cleanly replace the list, we want to keep the previous list of highlights rather
+than end up with an empty one.
 
-If the request payload contains no items, or we receive a null instead of a 
+If the request payload contains no items, or we receive a null instead of a
 list, we assume that the user wants to delete the list.
 
 # Day 4: Backend, continued
 
-Not a whole lot of time, so today we'll just implement the log-in and 
-log-out views as quickly as possible. As before, these are going to be 
+Not a whole lot of time, so today we'll just implement the log-in and log-out
+views as quickly as possible. As before, these are going to be
 `JSONView` subclasses.
 
 We want to use a single endpoint:
@@ -1014,16 +1015,16 @@ We want to use a single endpoint:
   - POST - create a new session (log in)
   - DELETE - delete the current session (log out)
 
-First we want to create a separate app for it. Lacking a better name, we'll 
-use 'administrators'. We don't want to use names like 'auth' because that 
-might be confusing given that Django itself has an 'auth' module. We won't 
-use 'users' for the same reason.
+First we want to create a separate app for it. Lacking a better name, we'll
+use 'administrators'. We don't want to use names like 'auth' because that might
+be confusing given that Django itself has an 'auth' module. We won't use 'users'
+for the same reason.
 
 ```shell
 (venv) python manage.py startapp administrators
 ```
 
-Next we will add the new app to the list of installed apps in the 
+Next we will add the new app to the list of installed apps in the
 `product_list/settings.py` module.
 
 ```python
@@ -1043,11 +1044,12 @@ class Sessions(JSONView):
     http_method_names = ['post', 'delete']
 ```
 
-We do not need any models as we are simply interacting with the Django's 
-built-in authentication API. Django already provides a LoginView, but we 
-will not use that as it is a very concrete view and not a lot of opportunity 
-for customization. Instead, we will adapt the example code from the 
-[documentation](https://docs.djangoproject.com/en/4.1/topics/auth/default/#how-to-log-a-user-in).
+We do not need any models as we are simply interacting with the Django's
+built-in authentication API. Django already provides a LoginView, but we will
+not use that as it is a very concrete view and not a lot of opportunity for
+customization. Instead, we will adapt the example code from the
+[documentation](https://docs.djangoproject.com/en/4.1/topics/auth/default/#how-to-log-a-user-in)
+.
 
 ```python
 from django.contrib.auth import authenticate, login
@@ -1072,20 +1074,21 @@ class Sessions(JSONView):
             raise PermissionDenied
 ```
 
-If the JSON is malformed in any way, we will raise a `SuspiciousOperation` 
-exception to cause Django to respond with 400. If authentication fails, we 
-raise the `PermissionDenied` exception, which will result in a 403 response.
+If the JSON is malformed in any way, we will raise a `SuspiciousOperation`
+exception to cause Django to respond with 400. If authentication fails, we raise
+the `PermissionDenied` exception, which will result in a 403 response.
 
-Otherwise, we log the user in and respond with `{'data': 'ok'}` payload. 
-Users do not really need any information they don't already have, so we are 
-not going to invent stuff. A simple 'ok' is fine.
+Otherwise, we log the user in and respond with `{'data': 'ok'}` payload. Users
+do not really need any information they don't already have, so we are not going
+to invent stuff. A simple 'ok' is fine.
 
-Django has sessions enabled by default. Logging the user using the `login()` 
-method will set a session cookie. This means that any requests the user 
-makes from this point on will include this cookie.
+Django has sessions enabled by default. Logging the user using the `login()`
+method will set a session cookie. This means that any requests the user makes
+from this point on will include this cookie.
 
-For the `delete()` method, we will similarly use the example for the 
-[documentation](https://docs.djangoproject.com/en/4.1/topics/auth/default/#how-to-log-a-user-out).
+For the `delete()` method, we will similarly use the example for the
+[documentation](https://docs.djangoproject.com/en/4.1/topics/auth/default/#how-to-log-a-user-out)
+.
 
 ```python
 from django.contrib.auth import logout
@@ -1120,14 +1123,14 @@ urlpatterns = [
 ]
 ```
 
-Now that we have the methods we need, we can test the implementation. The 
+Now that we have the methods we need, we can test the implementation. The
 `http_requests/sessions.http` contains the requests we use in order to test it.
 
 # Day 5, Backend, finish
 
-The last bit of work we have to do on the backend is to protect the product 
-views from unauthorized access. Django already provides the 
-`LoginRequiredMixin` for this purpose, so we will use that. In 
+The last bit of work we have to do on the backend is to protect the product
+views from unauthorized access. Django already provides the
+`LoginRequiredMixin` for this purpose, so we will use that. In
 `products/views.py`, we make the following changes:
 
 ```python
@@ -1152,38 +1155,38 @@ class ProductHighlightList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
     # ....
 ```
 
-Firstly, we fixed a mistake in the ordering of mixins and superclasses in 
-the class inheritance chain. I forgot that the superclass goes last, not first.
-With the inheritance chain corrected, the `dispatch()` overload in 
-`JSONView` should now correctly invoke the `dispatch()` method of the 
+Firstly, we fixed a mistake in the ordering of mixins and superclasses in the
+class inheritance chain. I forgot that the superclass goes last, not first. With
+the inheritance chain corrected, the `dispatch()` overload in
+`JSONView` should now correctly invoke the `dispatch()` method of the
 `LoginRequiredMixin`.
 
-The `raise_exception` flag instructs the underlying mixin to throw a 
+The `raise_exception` flag instructs the underlying mixin to throw a
 `PermissionDenied` exception instead of redirecting to the login view.
 
-We then test the views to make sure a 403 response is returned when 
-requesting these resources without first logging in. Everything checks out, 
-so that concludes the minimal implementation of the backend.
+We then test the views to make sure a 403 response is returned when requesting
+these resources without first logging in. Everything checks out, so that
+concludes the minimal implementation of the backend.
 
 # Day 6, Angular
 
-We start by planning our application. The first thing we want to define is 
-our domain model. The example app is relatively simple, and it only has two 
+We start by planning our application. The first thing we want to define is our
+domain model. The example app is relatively simple, and it only has two
 entities, a product and a product highlights list.
 
-We create a module that will hold our interfaces. Let's name it "entities" 
+We create a module that will hold our interfaces. Let's name it "entities"
 and place it into the `src/app` directory.
 
-First, we have a few numeric fields that we know are stored as 
-`PositiveIntegerField` in the database. While that's a useful distinction 
-for storage purposes, we have to think whether we also need to make the same 
-distinction in our model. Sure it is more *accurate*, but pragmatically, do 
-we have any operations that are likely to fail if we don't distinguish 
-between positive and negative values. Since it does not appear (right now) 
-that that would be the case, we will use `number` for fields like `stock` 
+First, we have a few numeric fields that we know are stored as
+`PositiveIntegerField` in the database. While that's a useful distinction for
+storage purposes, we have to think whether we also need to make the same
+distinction in our model. Sure it is more *accurate*, but pragmatically, do we
+have any operations that are likely to fail if we don't distinguish between
+positive and negative values. Since it does not appear (right now)
+that that would be the case, we will use `number` for fields like `stock`
 and `price`.
 
-We are going to use a separate type for the units. Unit represents a set of 
+We are going to use a separate type for the units. Unit represents a set of
 strings we can use to denote units. This is more likely to be useful in our app.
 
 ```typescript
@@ -1203,9 +1206,9 @@ export interface Product {
 }
 ```
 
-Now each product has an `id` field, but not always. We have to decide 
-whether we would like to have a nullable `id` field in the `Product` 
-interface, or have a subtype that has that field. The latter approach is 
+Now each product has an `id` field, but not always. We have to decide whether we
+would like to have a nullable `id` field in the `Product`
+interface, or have a subtype that has that field. The latter approach is
 probably closer to the domain model, so we'll go with that for now.
 
 ```typescript
@@ -1214,13 +1217,12 @@ export interface SavedProduct extends Product {
 }
 ```
 
-As long as our code is good about using the correct version of `Product`, we 
-should be able to catch cases where the code assumes there's an `id` but it 
+As long as our code is good about using the correct version of `Product`, we
+should be able to catch cases where the code assumes there's an `id` but it
 isn't really there (well, for the most part).
 
-We are not prefixing the interface name with an "I" as that's how it is done 
-in the official Angular documentation, and we are wanting to write idiomatic 
-code.
+We are not prefixing the interface name with an "I" as that's how it is done in
+the official Angular documentation, and we are wanting to write idiomatic code.
 
 Next we'll define an interface for a product highlight item.
 
@@ -1232,17 +1234,17 @@ export interface ProductHighlight {
 }
 ```
 
-As with the product, we have a special case of `ProductHighlight` that 
-represents a saved version. However, it does not look like we would actually 
+As with the product, we have a special case of `ProductHighlight` that
+represents a saved version. However, it does not look like we would actually
 benefit from having a separate interface for it. Instead, we opted for an
 optional `id` field.
 
-For now, we will not bother creating a separate administrator model, as 
-that's only going to be used in the log-in form.
+For now, we will not bother creating a separate administrator model, as that's
+only going to be used in the log-in form.
 
 We will proceed to create the products service.
 
-First we edit the `src/app/app.module.ts` and add the `HttpClientModule` 
+First we edit the `src/app/app.module.ts` and add the `HttpClientModule`
 injector to the list of imports:
 
 ```typescript
@@ -1260,17 +1262,17 @@ import { HttpClientModule } from '@angular/common/http'
 
 This will allow us to use the `HttpClient` service in our own service.
 
-Before we go further, we want to pause and decide how we want our service to 
-work. We know that the service uses an endpoint that is login-protected. If 
-the user isn't authenticated, we will receive a 403 response whatever we do. 
-In that case, we want to redirect the user to the login view. The redirect 
-is not a concern that we want to handle in this service as it's not part of 
-the business logic, but we need some information passed to the service's 
-consumer (component) so that it can perform the redirect.
+Before we go further, we want to pause and decide how we want our service to
+work. We know that the service uses an endpoint that is login-protected. If the
+user isn't authenticated, we will receive a 403 response whatever we do. In that
+case, we want to redirect the user to the login view. The redirect is not a
+concern that we want to handle in this service as it's not part of the business
+logic, but we need some information passed to the service's consumer (component)
+so that it can perform the redirect.
 
-We could create a separate service for handling permission errors. However, 
-this will not give the products service an opportunity to store information 
-about incomplete requests. Therefore, we will not abstract error handling.
+We could create a separate service for handling permission errors. However, this
+will not give the products service an opportunity to store information about
+incomplete requests. Therefore, we will not abstract error handling.
 
 As far as the concrete functionality of the service goes, we need to be able to:
 
@@ -1303,14 +1305,14 @@ export class ProductsService {
 }
 ```
 
-We implement the method to fetch the products. This method will update the 
-`productList`, `currentPage` and `totalPages` properties using the response 
-data, and return a observable that emits the error code. The error code 0 is 
-used to indicate no errors. It takes a set of named parameters, which will 
-only have a `page` key for now. We will add sorting and filtering to this later,
-but that requires changes in the backend.
+We implement the method to fetch the products. This method will update the
+`productList`, `currentPage` and `totalPages` properties using the response
+data, and return a observable that emits the error code. The error code 0 is
+used to indicate no errors. It takes a set of named parameters, which will only
+have a `page` key for now. We will add sorting and filtering to this later, but
+that requires changes in the backend.
 
-Before we implement this method, we'll define an interface for the response 
+Before we implement this method, we'll define an interface for the response
 data. In the same module we define:
 
 ```typescript
@@ -1328,13 +1330,16 @@ We can now implement the method:
 ```typescript
 export class ProductsService {
   // ....
-  
+
   fetchProducts({ page = 1 }) {
     return new Observable<number>(subscriber => {
-      this.httpClient.get<ProductListResponse>('http://127.0.0.1:8000/products/', {
-        responseType: 'json',
-        params: { page },
-      })
+      this.httpClient.get<ProductListResponse>(
+        'http://127.0.0.1:8000/products/',
+        {
+          responseType: 'json',
+          params: { page },
+        }
+      )
         .subscribe({
           next: data => {
             this.productList = data.data
@@ -1353,20 +1358,20 @@ export class ProductsService {
 }
 ```
 
-Angular uses RxJS under the hood, rather than the standard `fetch()` call. 
-With RxJS, once the observable is subscribed to, it cannot be chained to 
-anymore. Thus, we wrap it in a new `Observable` instance so that the caller 
-can observe the end of the transaction. The inner observable will emit the 
-error codes for the outer observable.
+Angular uses RxJS under the hood, rather than the standard `fetch()` call. With
+RxJS, once the observable is subscribed to, it cannot be chained to anymore.
+Thus, we wrap it in a new `Observable` instance so that the caller can observe
+the end of the transaction. The inner observable will emit the error codes for
+the outer observable.
 
-We generate the product list component just to check how our service feels 
-when integrated (not testing it yet).
+We generate the product list component just to check how our service feels when
+integrated (not testing it yet).
 
 ```shell
 npm run ng generate component product-list
 ```
 
-We import the product service and make the following changes in the 
+We import the product service and make the following changes in the
 `src/app/product-list/product-list.component.ts`:
 
 ```typescript
@@ -1387,8 +1392,8 @@ export class ProductListComponent implements OnInit {
 }
 ```
 
-When the component initializes, we want to update the product list. For this,
-we implement the `ngOnInit()` hook.
+When the component initializes, we want to update the product list. For this, we
+implement the `ngOnInit()` hook.
 
 ```typescript
 export class ProductListComponent implements OnInit {
@@ -1411,14 +1416,14 @@ export class ProductListComponent implements OnInit {
 
 # Day 7, Angular
 
-The code we wrote yesterday isn't very good. There are two things that 
-bother me. First, the `fetchProducts()` method clearly doesn't fetch 
-products, but error codes. Secondly the error handling code is going to end 
-up being scattered all over the place if we have to repeat it for each endpoint.
-We need to rework the code.
+The code we wrote yesterday isn't very good. There are two things that bother
+me. First, the `fetchProducts()` method clearly doesn't fetch products, but
+error codes. Secondly the error handling code is going to end up being scattered
+all over the place if we have to repeat it for each endpoint. We need to rework
+the code.
 
-We'll make the `Router` service a dependency of the `ProductService`, and 
-move error handling to the service as well.
+We'll make the `Router` service a dependency of the `ProductService`, and move
+error handling to the service as well.
 
 First, we make the following changes to the service:
 
@@ -1442,7 +1447,7 @@ function createBlankResponse(): ProductListResponse {
 // ....
 export class ProductsService {
   // ....
-  
+
   constructor(
     // ....
     private router: Router,
@@ -1451,12 +1456,15 @@ export class ProductsService {
   private handleUnauthorized() {
     this.router.navigateByUrl('/login')
   }
-  
+
   getProductList({ page = 1 }) {
-    return this.httpClient.get<ProductListResponse>('http://127.0.0.1:8000/products/', {
-      responseType: 'json',
-      params: { page },
-    })
+    return this.httpClient.get<ProductListResponse>(
+      'http://127.0.0.1:8000/products/',
+      {
+        responseType: 'json',
+        params: { page },
+      }
+    )
       .pipe(
         catchError((err: HttpErrorResponse) => {
           if (err.status === 403) this.handleUnauthorized()
@@ -1473,29 +1481,29 @@ export class ProductsService {
 }
 ```
 
-We change the default values of `currentPage` and `totalPages` to 0. The 
-zero value will serve as a signal that we have not loaded any data. We 
-defined a function called `createBlankResponse()` which returns the reponse 
-that represent no data. We use that in case we run into errors.
+We change the default values of `currentPage` and `totalPages` to 0. The zero
+value will serve as a signal that we have not loaded any data. We defined a
+function called `createBlankResponse()` which returns the reponse that represent
+no data. We use that in case we run into errors.
 
-We rename the `fetchProducts()` method to `getProductList()` as we'll make 
-it actually do that.
+We rename the `fetchProducts()` method to `getProductList()` as we'll make it
+actually do that.
 
-We import the `Router` service and make it a dependency of this service. It 
-doesn't feel entirely clean, but it looks better than what we had 
-yesterday. Secondly, we remove the outer `Observable` from the 
-`getProductList()` method, and re replace it with a pipe. 
+We import the `Router` service and make it a dependency of this service. It
+doesn't feel entirely clean, but it looks better than what we had yesterday.
+Secondly, we remove the outer `Observable` from the
+`getProductList()` method, and re replace it with a pipe.
 
-The pipe uses a `catchError()` operator to handle the redirect using the 
-private `handleUnauthorized()` method. It returns blank response data on error. 
+The pipe uses a `catchError()` operator to handle the redirect using the
+private `handleUnauthorized()` method. It returns blank response data on error.
 This eliminates special cases from the next step.
 
-The `tap()` operator is used to set the correct service properties, but will 
+The `tap()` operator is used to set the correct service properties, but will
 otherwise pass the data on to the subscriber if needed.
 
-Overall the code now looks a lot more like it's supposed to. Now we move on 
-the `src/app/product-list/product-list.component.ts` module to address the 
-other side.
+Overall the code now looks a lot more like it's supposed to. Now we move on
+the `src/app/product-list/product-list.component.ts` module to address the other
+side.
 
 ```typescript
 import { ActivatedRoute } from '@angular/router'
@@ -1504,12 +1512,12 @@ import { ActivatedRoute } from '@angular/router'
 
 export class ProductListComponent implements OnInit {
   // ....
-  
+
   constructor(
     private productsService: ProductsService,
     private route: ActivatedRoute,
   ) {}
-  
+
   ngOnInit() {
     let params = this.route.snapshot.queryParams
     this.productsService.getProductList({ page: Number(params['page']) })
@@ -1520,39 +1528,35 @@ export class ProductListComponent implements OnInit {
 }
 ```
 
-We've removed the `Router` from dependencies and also the associated import.
-We can also simplify the consumption of the `getProductList()` method. We fix 
-the type mismatch from yesterday by coercing the `page` parameter to a 
-number and fix its name (it was 'id' before). 
+We've removed the `Router` from dependencies and also the associated import. We
+can also simplify the consumption of the `getProductList()` method. We fix the
+type mismatch from yesterday by coercing the `page` parameter to a number and
+fix its name (it was 'id' before).
 
 We also switch it to use query parameters instead of path parameters. This is
 more idiomatic and semantically more correct. Query parameters select different
 views of the same resource, and our resource is a product list, not a specific
 page of the product list.
 
-The subscriber now does only one thing, which is update the `productList` 
+The subscriber now does only one thing, which is update the `productList`
 property of the component.
 
 There's still one little detail, which is the following line from the service:
 
 ```typescript
-catchError(err => {
-  // ....
-  else throwError(() => err)
-  // ....
-})
+    throwError(() => err)
 ```
 
-This line will cause the service to throw an error, but that error is not 
-handled anywhere (yet). These are errors we don't (yet) know what to do with,
-so we are deliberately allowing them to break our code. We don't want to do 
-something arbitrary like silence and log. At some point in the future, we'll 
-likely have a toast service or something to notify the user of the error, 
-but, for now, we'll just let it propagate and throw an exception so we're 
-painfully aware of them.
+This line will cause the service to throw an error, but that error is not
+handled anywhere (yet). These are errors we don't (yet) know what to do with, so
+we are deliberately allowing them to break our code. We don't want to do
+something arbitrary like silence and log. At some point in the future, we'll
+likely have a toast service or something to notify the user of the error, but,
+for now, we'll just let it propagate and throw an exception so we're painfully
+aware of them.
 
-Now we can test whether all of this works. We'll set up routing and then try 
-to access the product list page. The routing is defined in the 
+Now we can test whether all of this works. We'll set up routing and then try to
+access the product list page. The routing is defined in the
 `src/app/app-routing.module.ts` module.
 
 ```typescript
@@ -1567,7 +1571,7 @@ const routes: Routes = [
 // ....
 ```
 
-We're also going to modify the application template in 
+We're also going to modify the application template in
 `src/app/app.component.html` to look like this:
 
 ```html
@@ -1594,7 +1598,7 @@ We'll stub out the login component so we can test the redirect.
 npm run ng generate component login
 ```
 
-Then we add this component to the routing table in 
+Then we add this component to the routing table in
 `src/app/app-routing.module.ts`:
 
 ```typescript
@@ -1607,8 +1611,8 @@ const routes: Routes = [
 ]
 ```
 
-Before we test this, there's one thing we forgot to do, which is to allow 
-CORS in the backend. Switching to the backend directory we do:
+Before we test this, there's one thing we forgot to do, which is to allow CORS
+in the backend. Switching to the backend directory we do:
 
 ```shell
 venv\Scripts\activate.bat
@@ -1651,5 +1655,305 @@ and ten the angular dev server
 npm run start
 ```
 
-When we visit the root page, we are immediately redirected to `/login`. We 
-are good to go.
+When we visit the root page, we are immediately redirected to `/login`. We are
+good to go.
+
+# Day 8, Angular
+
+Today we deal with the login form as the ability to log in is going to be 
+useful for testing the product list.
+
+We create the service that will handle log-in requests. Additionally, we 
+want this service to also provide information about whether the user is 
+logged in, and, of course, give us the ability to log out (later).
+
+```shell
+npm run ng generate service auth
+CREATE src/app/auth.service.spec.ts (347 bytes)
+CREATE src/app/auth.service.ts (133 bytes)
+```
+
+Then we modify the auth service like so:
+
+```typescript
+import { HttpClient } from '@angular/common/http'
+import { Router } from '@angular/router'
+
+@Injectable({
+  providedIn: 'root',
+})
+export class AuthService {
+  username = ''
+  
+  constructor(
+    private httpClient: HttpClient,
+    private router: Router
+  ) { }
+  
+  get isAuthenticated() {
+    return this.username !== ''
+  }
+}
+```
+
+The service will have a `username` string field, and a `isAuthenticated` 
+getter. If the `username` field is a blank string, then we are 
+unauthenticated. Otherwise, the `username` field will match the account 
+name.
+
+We define the response interface. The backend returns either a non-200 
+status code with no meaningful body (it's HTML, but we ignore we are not 
+interested in the details), or a 200 response with just `{ data: 'ok' }` as 
+the payload.
+
+```typescript
+interface AuthResponse {
+  data: 'ok'
+}
+```
+
+Finally, we'll create a map between status codes and error messages that we 
+can use in the interface.
+
+```typescript
+export class AuthService {
+  // ....
+  private ERRORS: {[code: number]: string} = {
+    0: 'The server is currently unreachable.',
+    403: 'Your username and password do not match. Please check your credentials.',
+    500: 'The server failed to fulfill your request.',
+    9000: 'You could not be logged in due to an unknown error.',
+  }
+  private DEFAULT_CODE = 9000
+}
+```
+
+The error code 9000 is a fake code that we will use as a fallback error message.
+Why 9000? Read about it [here](https://knowyourmeme.com/memes/its-over-9000).
+
+We had to add a type signature to the property, TypeScript's idiosyncrasy. 
+Without the type signature, the compiler will emit the following error:
+
+```text
+No index signature with a parameter of type 'number' was found on type '{ 403: string; 500: string; 0: string; }'.
+```
+
+An alternative to using a false type on the `ERRORS` object is to use type 
+guards on the key before accessing the object properties. I'm not a big fan 
+of this approach as type guards are not removed from the compiled code 
+unlike type hints.
+
+We are ready to implement the `logIn()` method. We want the method to 
+perform the HTTP request, then either redirect the user to `/` URL on 
+success, or return an error message on error.
+
+```typescript
+// ....
+import { catchError, map, of } from 'rxjs'
+// ....
+
+export class AuthService {
+  // ....
+  logIn(username: string, password: string) {
+    return this.httpClient.post<AuthResponse>(
+      'http://127.0.0.1:8000/sessions/',
+      { data: { username, password } },
+      { responseType: 'json' },
+    )
+      .pipe(
+        catchError(err => {
+          return of({ data: 'error', status: err.status })
+        }),
+        map(data => {
+          if (data.data === 'error')
+            return this.ERRORS[data.status] || this.ERRORS[this.DEFAULT_CODE]
+          this.username = username
+          this.router.navigateByUrl('/')
+          return ''
+        }),
+      )
+  }
+}
+```
+
+The code should be reasonably easy to understand, so I won't go over it. 
+Basically, we did the same thing we did with the products endpoint, except 
+that, this time, we return the error message instead of the response data. 
+The empty error message is used to signal success.
+
+We don't like that we have `'http://127.0.0.1:8000'` hard-coded in two 
+location. Not because it's repeating, but because this is 
+environment-specific information. We will now create a module to hold the 
+environment-specific information and also modify the project configuration 
+to select the appropriate module based on the environment.
+
+We manually create two files in `src/app`: `envinfo.ts` and 
+`envinfo.production.ts`. For now, both files will be identical:
+
+```typescript
+export default {
+  API: 'http://127.0.0.1:8000'
+}
+```
+
+Next, we modify the configuration file, `angular.json`:
+
+```json5
+{
+  // ....
+  "project": {
+    // ....
+    "angular": {
+      // ....
+      "architect": {
+        // ....
+        "build": {
+          // ....
+          "configurations": {
+            // ....
+            "production": {
+              // ....
+              "fileReplacements": [
+                {
+                  "replace": "src/app/envinfo.ts",
+                  "with": "src/app/envinfo.production.ts"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Now we can modify both the `src/app/products.service.ts` and 
+`src/app/auth.service.ts` to use this module:
+
+```typescript
+import envinfo from './envinfo'
+
+// products.service.ts
+export class ProductsService {
+  // ....
+  getProductList({ page = 1 }) {
+    return this.httpClient.get<ProductListResponse>(`${envinfo.API}/products/`, {
+    // ....
+
+// auth.serivce.ts
+export class AuthService {
+  // ....
+  logIn(username: string, password: string) {
+    return this.httpClient.post<AuthResponse>(
+      `${envinfo.API}/sessions/`,
+```
+
+Next we configure the login component for form handling. We will use a 
+simple template-driven form instead of the reactive one. This form is a 
+one-off and quite simple, so there is no need to complicate it.
+
+```typescript
+// ....
+import { AuthService } from './auth.service'
+// ....
+
+export class LoginComponent {
+  errorMessage = ''
+  submitting = false
+
+  // ....
+
+  constructor(private authService: AuthService) {}
+}
+```
+
+We know that we'll handle the credentials using the form, so, naturally we 
+have the credentials represented as two fields. We also want to show the 
+error message on unsuccessful attempts, and we want to prevent resubmission 
+while we are submitting.
+
+To handle form submission, we will add an `onSubmit()` method.
+
+```typescript
+// ....
+export class LoginComponent {
+  onSubmit({ username, password }: { username: string, password: string }) {
+    this.submitting = true
+    this.errorMessage = ''
+    this.authService.logIn(username, password)
+      .subscribe(error => {
+        this.errorMessage = error
+        this.submitting = false
+      })
+  }
+}
+```
+
+We start by setting the `submitting` flag to `true`. We will use this later 
+in the template to disable the submit button. We also reset the error message.
+
+We then invoke the `logIn()` method of the auth service, and set the error 
+message to the returned value. We also reset the `submitting` flag to its 
+default value.
+
+Before we get to the template, we need to import `FormsModule` in our 
+`src/app/app.module.ts`:
+
+```typescript
+// ....
+import { FormsModule } from '@angular/forms'
+// ....
+@NgModule({
+  // ....
+  imports: [
+    // ....
+    FormsModule,
+  ],
+  // ....
+})
+```
+
+This allows us to use template-driven forms, Angular's "simpler" form API. The
+reason we quote "simple" is that, as with all things Angular, there's no 
+such thing as simple. 😁
+
+The login template in `src/app/login/login.component.html` looks like this:
+
+```html
+<h2>Log in</h2>
+
+<form #form="ngForm" (ngSubmit)="onSubmit(form.value)" ngNativeValidate>
+  <p aria-live="polite">{{ errorMessage }}</p>
+
+  <div>
+    <label>
+      <span>Username:</span>
+      <input type="text" name="username" required ngModel>
+    </label>
+  </div>
+
+  <label>
+    <span>Password</span>
+    <input type="password" name="password" required ngModel>
+  </label>
+
+  <button [disabled]="submitting">Log in</button>
+</form>
+```
+
+The `#form="ngForm"` attribute exposes the `ngForm` directive (which is 
+automatically added to all `<form>` elements by the `FormsModule`) is 
+exposed as the `form` variable in the template.
+
+`(ngSubmit)="onSubmit(form)"` handles a special `ngSubmit` event that is 
+emitted by `ngForm`.
+
+The `ngNativeValidate` directive will allow HTML5 native constraint 
+validation to work as expected (it does not by default). Native validation 
+is a lot easier to use. After trying the Angular's own validation API, we 
+decided that writing a more idiomatic implementation is simply not worth the 
+trouble.
+
+When testing this, I realized it completely slipped my mind that I'm using 
+session cookies cross-domain. We leave this issue for tomorrow.

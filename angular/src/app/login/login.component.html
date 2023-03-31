@@ -1,1 +1,19 @@
-<p>login works!</p>
+<h2>Log in</h2>
+
+<form #form="ngForm" (ngSubmit)="onSubmit(form.value)" ngNativeValidate>
+  <p aria-live="polite">{{ errorMessage }}</p>
+
+  <div>
+    <label>
+      <span>Username:</span>
+      <input type="text" name="username" required ngModel>
+    </label>
+  </div>
+
+  <label>
+    <span>Password</span>
+    <input type="password" name="password" required ngModel>
+  </label>
+
+  <button [disabled]="submitting">Log in</button>
+</form>
