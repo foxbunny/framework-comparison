@@ -5,6 +5,9 @@ import { Router } from '@angular/router'
 
 import envinfo from './envinfo'
 
+interface UsernameResponse {
+  data: string
+}
 interface AuthResponse {
   data: 'ok'
 }
@@ -29,6 +32,17 @@ export class AuthService {
 
   get isAuthenticated() {
     return this.username !== ''
+  }
+
+  getUsername() {
+    this.httpClient.get<UsernameResponse>(`${envinfo.API}/sessions/`, {
+      responseType: 'json',
+      withCredentials: true,
+    })
+      .subscribe(data => {
+        this.username = data.data
+        if (!this.username) this.router.navigateByUrl('/login')
+      })
   }
 
   logIn(username: string, password: string) {

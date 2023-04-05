@@ -1,1 +1,23 @@
-<p>product-list works!</p>
+<h2>Products</h2>
+
+<table>
+  <tbody>
+    <tr *ngFor="let product of productList">
+      <td>
+        {{product.id}}
+      </td>
+      <td>
+        {{product.name}}
+      </td>
+      <td>
+        {{product.sku}}
+      </td>
+      <td>
+        {{product.stock}}{{product.unit}}
+      </td>
+      <td>
+        {{(product.price / 100)| currency}}
+      </td>
+    </tr>
+  </tbody>
+</table>

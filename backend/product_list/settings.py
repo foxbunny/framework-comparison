@@ -126,4 +126,12 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ORIGIN_ALLOW_ALL = True
+# Support for cross-site cookies
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE = True
+CORS_ORIGIN_ALLOW_ALL = False
+CORS_ALLOWED_ORIGINS = [
+    'http://127.0.0.1:8010',
+    'http://localhost:8010',
+]
+CORS_ALLOW_CREDENTIALS = True

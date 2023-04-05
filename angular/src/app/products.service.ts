@@ -4,6 +4,7 @@ import { Router } from '@angular/router'
 import { catchError, of, tap, throwError } from 'rxjs'
 
 import { SavedProduct } from './entities'
+import { ToastsService } from './toasts.service'
 import envinfo from './envinfo'
 
 interface ProductListResponse {
@@ -34,11 +35,11 @@ export class ProductsService {
 
   constructor(
     private httpClient: HttpClient,
-    private router: Router,
+    private toastsService: ToastsService,
   ) { }
 
   private handleUnauthorized() {
-    this.router.navigateByUrl('/login')
+    this.toastsService.error('Your session has expired. Please log in and try again.')
   }
 
   getProductList({ page = 1 }) {
@@ -62,5 +63,9 @@ export class ProductsService {
           this.totalPages = data.page.total
         }),
       )
+  }
+
+  getProductById(id: number) {
+    return this.productList.find(x => x.id === id)
   }
 }

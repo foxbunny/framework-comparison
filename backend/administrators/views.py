@@ -5,7 +5,10 @@ from helpers.views import JSONView
 
 
 class Sessions(JSONView):
-    http_method_names = ['post', 'delete']
+    http_method_names = ['get', 'post', 'delete']
+
+    def get(self, *args, **kwargs):
+        return {'data': self.request.user.username}
 
     def post(self, *args, **kwargs):
         try:

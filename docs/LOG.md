@@ -1957,3 +1957,239 @@ trouble.
 
 When testing this, I realized it completely slipped my mind that I'm using 
 session cookies cross-domain. We leave this issue for tomorrow.
+
+# Day 9, Backend, Angular, continued
+
+After a bit of poking, the following changes made the cross-domain cookies work:
+
+In LibreWolf (Firefox privacy-oriented clone) I had to specifically allow 
+setting cookies for the application URL and API URL. Then I made the 
+following additions to the `backend/product_list/settings.py`:
+
+```python
+# Support for cross-site cookies
+CORS_ORIGIN_ALLOW_ALL = False
+CORS_ALLOWED_ORIGINS = [
+    'http://127.0.0.1:8010',
+    'http://localhost:8010',
+]
+CORS_ALLOW_CREDENTIALS = True
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE = True
+```
+
+First, `Access-Control-Allow-Origin: *` does not allow cross-domain cookies. 
+Specific hosts must therefore be listed. I listed the two variants of the 
+Angular app URLs that I use locally.
+
+The `Access-Control-Allow-Credentials` must also be set in order for the 
+browser to send cookies.
+
+Cookie must have the `Secure` option set, and must have `SameSite=None`. 
+Setting `SameSite=Lax` or `SameSite=Strict` will not work, and 
+`SameSite=None` **requires** the `Secure` option.
+
+Normally, `Secure` will require an HTTPS connection to the host, but most 
+browser will be forgiving when using localhost or 127.0.0.1.
+
+Now that the login is working, we can actually get the username from the 
+backend when the app initializes. To do this, we need to expand the sessions 
+endpoint and add the feature. In `administrators/views.py` we make the 
+following changes:
+
+
+```python
+# ....
+
+class Sessions(JSONView):
+    http_method_names = ['get', 'post', 'delete']
+
+    def get(self, *args, **kwargs):
+        return {'data': self.request.user.username}
+```
+
+With this change, the endpoint returns `{data: ''}` when the user is not 
+logged out, and otherwise returns `{data: 'username'}` where `'username'` 
+matches the account name of the user matching the session cookie.
+
+Back in the angular app, we modify the auth service to integrate this feature.
+
+First we change the service in `src/app/auth.service.ts`:
+
+```typescript
+// ....
+
+export class AuthService {
+  // ....
+  getUsername() {
+    this.httpClient.get<UsernameResponse>(`${envinfo.API}/sessions/`, {
+      responseType: 'json',
+      withCredentials: true,
+    })
+      .subscribe(data => {
+        this.username = data.data
+        if (!this.username) this.router.navigateByUrl('/login')
+      })
+  }
+}
+```
+
+We can now call this method when the app is initializing. To do that, we 
+need to implement a `ngOnInit()` on the `app` component in 
+`src/app/app.component.ts`.
+
+```typescript
+import { Component, OnInit } from '@angular/core'
+
+import { AuthService } from './auth.service'
+
+// ....
+export class AppComponent implements OnInit {
+  // ....
+
+  constructor(private authService: AuthService) {}
+
+  ngOnInit() {
+    this.authService.getUsername()
+  }
+}
+```
+
+Now that that's in place, the application will have the knowledge about the 
+currently logged-in user right from the start. We can also use this 
+information to set up the log-out button later.
+
+Now we also have a bit of a redundancy between this mechanism and the 
+redirect that we do in the product list. We're going to remove the redirect 
+in the product list service as we don't want to duplicate the redirect. It 
+was useful initially while we didn't have the proper auth service, but now 
+that we do, we no longer need it. 
+
+Thinking long-term, though, we want to handle the following case: what if the
+session expires at some point after the application initializes? In that case, 
+we want the user to be notified, but we don't want to do the redirect 
+immediately. The reason we don't want to redirect immediately is that it 
+would be too abrupt. We want to give the user time to realize what happened.
+For this, we want to implement a toast service so that we can present 
+non-modal notifications. We will not integrate it with the UI for now, but 
+we'll integrate it into the product list service.
+
+```shell
+npm run ng generate service toasts
+CREATE src/app/toasts.service.spec.ts (357 bytes)
+CREATE src/app/toasts.service.ts (135 bytes)
+```
+
+Toasts can be either informational, or errors. We don't want to have 
+multiple toasts at the same time, and we want the toast to go away on its 
+own after about 10 seconds.
+
+We start off by defining the toast interface. In `src/app/toasts.service.ts` 
+we add the following code:
+
+```typescript
+// ....
+interface Toast {
+  type: 'error' | 'notice'
+  message: string
+}
+// ....
+export class ToastsService {
+  toast: Toast | null = null
+  // ....
+}
+```
+
+The `toasts` field is optional. It's `null` when unset.
+
+We will add a generic method to set the toast message. This method will 
+implement the low-level details.
+
+```typescript
+export class ToastsService {
+  static TIMEOUT = 10_000
+  
+  // ....
+
+  private setToast(type: ToastType, message: string) {
+    this.toast = { type, message }
+    setTimeout(() => {
+      this.toast = null
+    }, ToastsService.TIMEOUT)
+  }
+}
+```
+
+Finally, we add toast-type-specific methods that this service's consumers 
+will actually use.
+
+```typescript
+export class ToastsService {
+  // ....
+
+  error(message: string) {
+    this.setToast('error', message)
+  }
+
+  notice(message: string) {
+    this.setToast('notice', message)
+  }
+}
+```
+
+Now we can integrate this service into our products service in 
+`src/app/products.service.ts`:
+
+```typescript
+import { ToastsService } from './toasts.service'
+
+export class ProductsService {
+  // ....
+
+  constructor(
+    // ....
+    // private router: Router [removed]
+    private toastsService: ToastsService,
+  ) { }
+
+  private handleUnauthorized() {
+    this.toastsService.error('Your session has expired. Please log in and try again.')
+  }
+}
+```
+
+(In a real-life application, it would probably be better for the UX to just 
+pop-up a log-in modal with an explanation about why it is requested. However,
+one of the goals of this project is to test navigation, so we deliberately 
+use a more contrived workflow with a separate login page.)
+
+Now that that's done, we can move on to implementing the product list. We're 
+going to keep it simple for now in the interest of time. We edit the template in
+`src/app/product-list/product-list.template.html` and replace the contents with:
+
+```html
+<h2>Products</h2>
+
+<table>
+  <tr *ngFor="let product of productList">
+    <td>
+      {{product.id}}
+    </td>
+    <td>
+      {{product.name}}
+    </td>
+    <td>
+      {{product.sku}}
+    </td>
+    <td>
+      {{product.stock}}{{product.unit}}
+    </td>
+    <td>
+      {{(product.price / 100)| currency}}
+    </td>
+  </tr>
+</table>
+```
+
+This works as expected. We'll later replace these read-only fields with 
+editable fields that toggle between edit and read mode.
