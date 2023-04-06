@@ -17,6 +17,12 @@ class Product(models.Model):
     price = models.PositiveIntegerField(default=0)
     updated = models.DateTimeField(auto_now=True)
 
+    def from_dict(self, data):
+        for k, v in data.items():
+            if k in ['pk', 'id']:
+                continue
+            setattr(self, k, v)
+
     def to_dict(self):
         return {
             'id': self.pk,

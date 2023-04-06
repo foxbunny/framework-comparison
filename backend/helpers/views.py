@@ -5,7 +5,6 @@ from json import dumps, loads, JSONDecodeError, JSONEncoder
 from django import views
 from django.core.exceptions import SuspiciousOperation
 from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 
 
 class CustomEncoder(JSONEncoder):
@@ -35,7 +34,6 @@ class JSONView(views.generic.base.View):
     def render_to_response(self, ctx):
         return self.render_to_json(ctx)
 
-    @csrf_exempt
     def dispatch(self, *args, **kwargs):
         ctx = super().dispatch(*args, **kwargs)
         return self.render_to_json(ctx)

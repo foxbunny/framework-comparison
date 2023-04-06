@@ -11,6 +11,7 @@ export interface Product {
 
 export interface SavedProduct extends Product {
   id: number,
+  updated: number,
 }
 
 export interface ProductHighlight {

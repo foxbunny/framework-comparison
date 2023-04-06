@@ -2,14 +2,16 @@ from django import db
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import SuspiciousOperation
 from django.forms import models
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.detail import SingleObjectMixin
 from django.views.generic.list import MultipleObjectMixin
 
 from helpers.views import JSONView
-
 from .models import Product, ProductHighlight
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ProductList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
     model = Product
     http_method_names = ['get', 'post']
@@ -38,6 +40,7 @@ class ProductList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
         return {'data': product.to_dict()}
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ProductDetails(SingleObjectMixin, LoginRequiredMixin, JSONView):
     model = Product
     raise_exception = True
@@ -48,10 +51,7 @@ class ProductDetails(SingleObjectMixin, LoginRequiredMixin, JSONView):
     def patch(self, *args, **kwargs):
         product = self.get_object()
         data = self.get_json_body()
-        for k, v in data.items():
-            if k in ['pk', 'id']:
-                continue
-            setattr(product, k, v)
+        product.from_dict(data)
         try:
             product.full_clean()
             product.save(force_update=True)
@@ -64,6 +64,7 @@ class ProductDetails(SingleObjectMixin, LoginRequiredMixin, JSONView):
         return {'data': None}
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class ProductHighlightList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
     model = ProductHighlight
     raise_exception = True

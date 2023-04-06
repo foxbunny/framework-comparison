@@ -1,0 +1,7 @@
+<button (click)="toggle.emit()" [hidden]="editing"
+        [attr.aria-label]="value + ' (activate to edit)'">
+  {{value}}
+</button>
+<div [hidden]="!editing">
+  <ng-content></ng-content>
+</div>

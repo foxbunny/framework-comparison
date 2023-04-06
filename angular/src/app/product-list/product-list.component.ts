@@ -10,6 +10,8 @@ import { ActivatedRoute } from '@angular/router'
 })
 export class ProductListComponent implements OnInit {
   productList = this.productsService.productList
+  editedProductId = -1
+  editorData = this.productsService.getEditorDataForProductById(this.editedProductId)
 
   constructor(
     private productsService: ProductsService,
@@ -21,6 +23,25 @@ export class ProductListComponent implements OnInit {
     this.productsService.getProductList({ page: Number(params['page']) || 1 })
       .subscribe(() => {
         this.productList = this.productsService.productList
+      })
+  }
+
+  onStartEditing(productId = -1) {
+    this.editedProductId = productId
+    this.editorData = this.productsService.getEditorDataForProductById(this.editedProductId)
+  }
+
+  onCancel() {
+    this.onStartEditing()
+  }
+
+  onConfirm() {
+    this.productsService.saveProduct(this.editedProductId, this.editorData)
+      .subscribe(result => {
+        if (result) {
+          this.onCancel()
+          this.productList = this.productsService.productList
+        }
       })
   }
 }

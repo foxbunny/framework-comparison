@@ -1,18 +1,21 @@
 import { Injectable } from '@angular/core'
 import { HttpClient, HttpErrorResponse } from '@angular/common/http'
-import { Router } from '@angular/router'
-import { catchError, of, tap, throwError } from 'rxjs'
+import { catchError, map, of, tap, throwError } from 'rxjs'
 
-import { SavedProduct } from './entities'
+import { Product, SavedProduct } from './entities'
 import { ToastsService } from './toasts.service'
 import envinfo from './envinfo'
 
 interface ProductListResponse {
-  data: Array<SavedProduct>,
+  data: Array<SavedProduct>
   page: {
-    current: number,
-    total: number,
-  },
+    current: number
+    total: number
+  }
+}
+
+interface ProductPatchResponse {
+  data: SavedProduct
 }
 
 function createBlankResponse(): ProductListResponse {
@@ -21,7 +24,7 @@ function createBlankResponse(): ProductListResponse {
     page: {
       current: 0,
       total: 0,
-    }
+    },
   }
 }
 
@@ -65,7 +68,41 @@ export class ProductsService {
       )
   }
 
-  getProductById(id: number) {
-    return this.productList.find(x => x.id === id)
+  getEditorDataForProductById(productId: number): Product {
+    let product = this.productList.find(x => x.id === productId)
+    if (!product) return {
+      name: '',
+      description: '',
+      sku: '',
+      price: 0,
+      stock: 0,
+      unit: 'pc',
+    }
+    let { id, updated, ...editableProductData } = product
+    return editableProductData
+  }
+
+  saveProduct(productId: number, updatedData: Product) {
+    return this.httpClient.patch<ProductPatchResponse>(
+      `${envinfo.API}/products/${encodeURIComponent(productId)}`,
+      updatedData,
+      {
+        responseType: 'json',
+        withCredentials: true,
+      },
+    )
+      .pipe(
+        catchError(err => {
+          this.toastsService.error('The product was not updated due to a server error.')
+          console.error(err)
+          return of({ data: null })
+        }),
+        map(({ data }) => {
+          if (data == null) return
+          let index = this.productList.findIndex(x => x.id === productId)
+          this.productList[index] = data
+          return data
+        }),
+      )
   }
 }

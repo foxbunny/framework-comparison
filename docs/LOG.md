@@ -990,7 +990,8 @@ class ProductHighlightList(JSONView, views.generic.list.MultipleObjectMixin):
                 try:
                     self.model.objects.bulk_create(highlights)
                 except (
-                models.ValidationError, ValueError, db.utils.IntegrityError):
+                        models.ValidationError, ValueError,
+                        db.utils.IntegrityError):
                     raise SuspiciousOperation
         return self.get(*args, **kwargs)
 ```
@@ -1660,12 +1661,12 @@ good to go.
 
 # Day 8, Angular
 
-Today we deal with the login form as the ability to log in is going to be 
-useful for testing the product list.
+Today we deal with the login form as the ability to log in is going to be useful
+for testing the product list.
 
-We create the service that will handle log-in requests. Additionally, we 
-want this service to also provide information about whether the user is 
-logged in, and, of course, give us the ability to log out (later).
+We create the service that will handle log-in requests. Additionally, we want
+this service to also provide information about whether the user is logged in,
+and, of course, give us the ability to log out (later).
 
 ```shell
 npm run ng generate service auth
@@ -1684,27 +1685,25 @@ import { Router } from '@angular/router'
 })
 export class AuthService {
   username = ''
-  
+
   constructor(
     private httpClient: HttpClient,
     private router: Router
   ) { }
-  
+
   get isAuthenticated() {
     return this.username !== ''
   }
 }
 ```
 
-The service will have a `username` string field, and a `isAuthenticated` 
-getter. If the `username` field is a blank string, then we are 
-unauthenticated. Otherwise, the `username` field will match the account 
-name.
+The service will have a `username` string field, and a `isAuthenticated`
+getter. If the `username` field is a blank string, then we are unauthenticated.
+Otherwise, the `username` field will match the account name.
 
-We define the response interface. The backend returns either a non-200 
-status code with no meaningful body (it's HTML, but we ignore we are not 
-interested in the details), or a 200 response with just `{ data: 'ok' }` as 
-the payload.
+We define the response interface. The backend returns either a non-200 status
+code with no meaningful body (it's HTML, but we ignore we are not interested in
+the details), or a 200 response with just `{ data: 'ok' }` as the payload.
 
 ```typescript
 interface AuthResponse {
@@ -1712,13 +1711,13 @@ interface AuthResponse {
 }
 ```
 
-Finally, we'll create a map between status codes and error messages that we 
-can use in the interface.
+Finally, we'll create a map between status codes and error messages that we can
+use in the interface.
 
 ```typescript
 export class AuthService {
   // ....
-  private ERRORS: {[code: number]: string} = {
+  private ERRORS: { [code: number]: string } = {
     0: 'The server is currently unreachable.',
     403: 'Your username and password do not match. Please check your credentials.',
     500: 'The server failed to fulfill your request.',
@@ -1731,25 +1730,26 @@ export class AuthService {
 The error code 9000 is a fake code that we will use as a fallback error message.
 Why 9000? Read about it [here](https://knowyourmeme.com/memes/its-over-9000).
 
-We had to add a type signature to the property, TypeScript's idiosyncrasy. 
+We had to add a type signature to the property, TypeScript's idiosyncrasy.
 Without the type signature, the compiler will emit the following error:
 
 ```text
 No index signature with a parameter of type 'number' was found on type '{ 403: string; 500: string; 0: string; }'.
 ```
 
-An alternative to using a false type on the `ERRORS` object is to use type 
-guards on the key before accessing the object properties. I'm not a big fan 
-of this approach as type guards are not removed from the compiled code 
-unlike type hints.
+An alternative to using a false type on the `ERRORS` object is to use type
+guards on the key before accessing the object properties. I'm not a big fan of
+this approach as type guards are not removed from the compiled code unlike type
+hints.
 
-We are ready to implement the `logIn()` method. We want the method to 
-perform the HTTP request, then either redirect the user to `/` URL on 
-success, or return an error message on error.
+We are ready to implement the `logIn()` method. We want the method to perform
+the HTTP request, then either redirect the user to `/` URL on success, or return
+an error message on error.
 
 ```typescript
 // ....
 import { catchError, map, of } from 'rxjs'
+
 // ....
 
 export class AuthService {
@@ -1776,18 +1776,18 @@ export class AuthService {
 }
 ```
 
-The code should be reasonably easy to understand, so I won't go over it. 
-Basically, we did the same thing we did with the products endpoint, except 
-that, this time, we return the error message instead of the response data. 
-The empty error message is used to signal success.
+The code should be reasonably easy to understand, so I won't go over it.
+Basically, we did the same thing we did with the products endpoint, except that,
+this time, we return the error message instead of the response data. The empty
+error message is used to signal success.
 
-We don't like that we have `'http://127.0.0.1:8000'` hard-coded in two 
-location. Not because it's repeating, but because this is 
-environment-specific information. We will now create a module to hold the 
-environment-specific information and also modify the project configuration 
-to select the appropriate module based on the environment.
+We don't like that we have `'http://127.0.0.1:8000'` hard-coded in two location.
+Not because it's repeating, but because this is environment-specific
+information. We will now create a module to hold the environment-specific
+information and also modify the project configuration to select the appropriate
+module based on the environment.
 
-We manually create two files in `src/app`: `envinfo.ts` and 
+We manually create two files in `src/app`: `envinfo.ts` and
 `envinfo.production.ts`. For now, both files will be identical:
 
 ```typescript
@@ -1828,7 +1828,7 @@ Next, we modify the configuration file, `angular.json`:
 }
 ```
 
-Now we can modify both the `src/app/products.service.ts` and 
+Now we can modify both the `src/app/products.service.ts` and
 `src/app/auth.service.ts` to use this module:
 
 ```typescript
@@ -1838,24 +1838,27 @@ import envinfo from './envinfo'
 export class ProductsService {
   // ....
   getProductList({ page = 1 }) {
-    return this.httpClient.get<ProductListResponse>(`${envinfo.API}/products/`, {
-    // ....
+    return this.httpClient.get<ProductListResponse>(
+      `${envinfo.API}/products/`,
+      {
+        // ....
 
 // auth.serivce.ts
-export class AuthService {
-  // ....
-  logIn(username: string, password: string) {
-    return this.httpClient.post<AuthResponse>(
-      `${envinfo.API}/sessions/`,
+        export class AuthService {
+          // ....
+          logIn(username: string, password: string) {
+            return this.httpClient.post<AuthResponse>(
+              `${envinfo.API}/sessions/`,
 ```
 
-Next we configure the login component for form handling. We will use a 
-simple template-driven form instead of the reactive one. This form is a 
-one-off and quite simple, so there is no need to complicate it.
+Next we configure the login component for form handling. We will use a simple
+template-driven form instead of the reactive one. This form is a one-off and
+quite simple, so there is no need to complicate it.
 
 ```typescript
 // ....
 import { AuthService } from './auth.service'
+
 // ....
 
 export class LoginComponent {
@@ -1868,10 +1871,10 @@ export class LoginComponent {
 }
 ```
 
-We know that we'll handle the credentials using the form, so, naturally we 
-have the credentials represented as two fields. We also want to show the 
-error message on unsuccessful attempts, and we want to prevent resubmission 
-while we are submitting.
+We know that we'll handle the credentials using the form, so, naturally we have
+the credentials represented as two fields. We also want to show the error
+message on unsuccessful attempts, and we want to prevent resubmission while we
+are submitting.
 
 To handle form submission, we will add an `onSubmit()` method.
 
@@ -1890,14 +1893,14 @@ export class LoginComponent {
 }
 ```
 
-We start by setting the `submitting` flag to `true`. We will use this later 
-in the template to disable the submit button. We also reset the error message.
+We start by setting the `submitting` flag to `true`. We will use this later in
+the template to disable the submit button. We also reset the error message.
 
-We then invoke the `logIn()` method of the auth service, and set the error 
-message to the returned value. We also reset the `submitting` flag to its 
+We then invoke the `logIn()` method of the auth service, and set the error
+message to the returned value. We also reset the `submitting` flag to its
 default value.
 
-Before we get to the template, we need to import `FormsModule` in our 
+Before we get to the template, we need to import `FormsModule` in our
 `src/app/app.module.ts`:
 
 ```typescript
@@ -1915,8 +1918,8 @@ import { FormsModule } from '@angular/forms'
 ```
 
 This allows us to use template-driven forms, Angular's "simpler" form API. The
-reason we quote "simple" is that, as with all things Angular, there's no 
-such thing as simple. 😁
+reason we quote "simple" is that, as with all things Angular, there's no such
+thing as simple. 😁
 
 The login template in `src/app/login/login.component.html` looks like this:
 
@@ -1942,29 +1945,28 @@ The login template in `src/app/login/login.component.html` looks like this:
 </form>
 ```
 
-The `#form="ngForm"` attribute exposes the `ngForm` directive (which is 
-automatically added to all `<form>` elements by the `FormsModule`) is 
-exposed as the `form` variable in the template.
+The `#form="ngForm"` attribute exposes the `ngForm` directive (which is
+automatically added to all `<form>` elements by the `FormsModule`) is exposed as
+the `form` variable in the template.
 
-`(ngSubmit)="onSubmit(form)"` handles a special `ngSubmit` event that is 
-emitted by `ngForm`.
+`(ngSubmit)="onSubmit(form)"` handles a special `ngSubmit` event that is emitted
+by `ngForm`.
 
-The `ngNativeValidate` directive will allow HTML5 native constraint 
-validation to work as expected (it does not by default). Native validation 
-is a lot easier to use. After trying the Angular's own validation API, we 
-decided that writing a more idiomatic implementation is simply not worth the 
-trouble.
+The `ngNativeValidate` directive will allow HTML5 native constraint validation
+to work as expected (it does not by default). Native validation is a lot easier
+to use. After trying the Angular's own validation API, we decided that writing a
+more idiomatic implementation is simply not worth the trouble.
 
-When testing this, I realized it completely slipped my mind that I'm using 
+When testing this, I realized it completely slipped my mind that I'm using
 session cookies cross-domain. We leave this issue for tomorrow.
 
 # Day 9, Backend, Angular, continued
 
 After a bit of poking, the following changes made the cross-domain cookies work:
 
-In LibreWolf (Firefox privacy-oriented clone) I had to specifically allow 
-setting cookies for the application URL and API URL. Then I made the 
-following additions to the `backend/product_list/settings.py`:
+In LibreWolf (Firefox privacy-oriented clone) I had to specifically allow
+setting cookies for the application URL and API URL. Then I made the following
+additions to the `backend/product_list/settings.py`:
 
 ```python
 # Support for cross-site cookies
@@ -1978,25 +1980,23 @@ SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True
 ```
 
-First, `Access-Control-Allow-Origin: *` does not allow cross-domain cookies. 
-Specific hosts must therefore be listed. I listed the two variants of the 
+First, `Access-Control-Allow-Origin: *` does not allow cross-domain cookies.
+Specific hosts must therefore be listed. I listed the two variants of the
 Angular app URLs that I use locally.
 
-The `Access-Control-Allow-Credentials` must also be set in order for the 
-browser to send cookies.
+The `Access-Control-Allow-Credentials` must also be set in order for the browser
+to send cookies.
 
-Cookie must have the `Secure` option set, and must have `SameSite=None`. 
-Setting `SameSite=Lax` or `SameSite=Strict` will not work, and 
+Cookie must have the `Secure` option set, and must have `SameSite=None`.
+Setting `SameSite=Lax` or `SameSite=Strict` will not work, and
 `SameSite=None` **requires** the `Secure` option.
 
-Normally, `Secure` will require an HTTPS connection to the host, but most 
+Normally, `Secure` will require an HTTPS connection to the host, but most
 browser will be forgiving when using localhost or 127.0.0.1.
 
-Now that the login is working, we can actually get the username from the 
-backend when the app initializes. To do this, we need to expand the sessions 
-endpoint and add the feature. In `administrators/views.py` we make the 
-following changes:
-
+Now that the login is working, we can actually get the username from the backend
+when the app initializes. To do this, we need to expand the sessions endpoint
+and add the feature. In `administrators/views.py` we make the following changes:
 
 ```python
 # ....
@@ -2008,8 +2008,8 @@ class Sessions(JSONView):
         return {'data': self.request.user.username}
 ```
 
-With this change, the endpoint returns `{data: ''}` when the user is not 
-logged out, and otherwise returns `{data: 'username'}` where `'username'` 
+With this change, the endpoint returns `{data: ''}` when the user is not logged
+out, and otherwise returns `{data: 'username'}` where `'username'`
 matches the account name of the user matching the session cookie.
 
 Back in the angular app, we modify the auth service to integrate this feature.
@@ -2034,8 +2034,8 @@ export class AuthService {
 }
 ```
 
-We can now call this method when the app is initializing. To do that, we 
-need to implement a `ngOnInit()` on the `app` component in 
+We can now call this method when the app is initializing. To do that, we need to
+implement a `ngOnInit()` on the `app` component in
 `src/app/app.component.ts`.
 
 ```typescript
@@ -2055,24 +2055,24 @@ export class AppComponent implements OnInit {
 }
 ```
 
-Now that that's in place, the application will have the knowledge about the 
-currently logged-in user right from the start. We can also use this 
-information to set up the log-out button later.
+Now that that's in place, the application will have the knowledge about the
+currently logged-in user right from the start. We can also use this information
+to set up the log-out button later.
 
-Now we also have a bit of a redundancy between this mechanism and the 
-redirect that we do in the product list. We're going to remove the redirect 
-in the product list service as we don't want to duplicate the redirect. It 
-was useful initially while we didn't have the proper auth service, but now 
-that we do, we no longer need it. 
+Now we also have a bit of a redundancy between this mechanism and the redirect
+that we do in the product list. We're going to remove the redirect in the
+product list service as we don't want to duplicate the redirect. It was useful
+initially while we didn't have the proper auth service, but now that we do, we
+no longer need it.
 
 Thinking long-term, though, we want to handle the following case: what if the
-session expires at some point after the application initializes? In that case, 
-we want the user to be notified, but we don't want to do the redirect 
-immediately. The reason we don't want to redirect immediately is that it 
-would be too abrupt. We want to give the user time to realize what happened.
-For this, we want to implement a toast service so that we can present 
-non-modal notifications. We will not integrate it with the UI for now, but 
-we'll integrate it into the product list service.
+session expires at some point after the application initializes? In that case,
+we want the user to be notified, but we don't want to do the redirect
+immediately. The reason we don't want to redirect immediately is that it would
+be too abrupt. We want to give the user time to realize what happened. For this,
+we want to implement a toast service so that we can present non-modal
+notifications. We will not integrate it with the UI for now, but we'll integrate
+it into the product list service.
 
 ```shell
 npm run ng generate service toasts
@@ -2080,11 +2080,11 @@ CREATE src/app/toasts.service.spec.ts (357 bytes)
 CREATE src/app/toasts.service.ts (135 bytes)
 ```
 
-Toasts can be either informational, or errors. We don't want to have 
-multiple toasts at the same time, and we want the toast to go away on its 
-own after about 10 seconds.
+Toasts can be either informational, or errors. We don't want to have multiple
+toasts at the same time, and we want the toast to go away on its own after about
+10 seconds.
 
-We start off by defining the toast interface. In `src/app/toasts.service.ts` 
+We start off by defining the toast interface. In `src/app/toasts.service.ts`
 we add the following code:
 
 ```typescript
@@ -2093,6 +2093,7 @@ interface Toast {
   type: 'error' | 'notice'
   message: string
 }
+
 // ....
 export class ToastsService {
   toast: Toast | null = null
@@ -2102,13 +2103,13 @@ export class ToastsService {
 
 The `toasts` field is optional. It's `null` when unset.
 
-We will add a generic method to set the toast message. This method will 
+We will add a generic method to set the toast message. This method will
 implement the low-level details.
 
 ```typescript
 export class ToastsService {
   static TIMEOUT = 10_000
-  
+
   // ....
 
   private setToast(type: ToastType, message: string) {
@@ -2120,8 +2121,8 @@ export class ToastsService {
 }
 ```
 
-Finally, we add toast-type-specific methods that this service's consumers 
-will actually use.
+Finally, we add toast-type-specific methods that this service's consumers will
+actually use.
 
 ```typescript
 export class ToastsService {
@@ -2137,7 +2138,7 @@ export class ToastsService {
 }
 ```
 
-Now we can integrate this service into our products service in 
+Now we can integrate this service into our products service in
 `src/app/products.service.ts`:
 
 ```typescript
@@ -2153,17 +2154,18 @@ export class ProductsService {
   ) { }
 
   private handleUnauthorized() {
-    this.toastsService.error('Your session has expired. Please log in and try again.')
+    this.toastsService.error(
+      'Your session has expired. Please log in and try again.')
   }
 }
 ```
 
-(In a real-life application, it would probably be better for the UX to just 
+(In a real-life application, it would probably be better for the UX to just
 pop-up a log-in modal with an explanation about why it is requested. However,
-one of the goals of this project is to test navigation, so we deliberately 
-use a more contrived workflow with a separate login page.)
+one of the goals of this project is to test navigation, so we deliberately use a
+more contrived workflow with a separate login page.)
 
-Now that that's done, we can move on to implementing the product list. We're 
+Now that that's done, we can move on to implementing the product list. We're
 going to keep it simple for now in the interest of time. We edit the template in
 `src/app/product-list/product-list.template.html` and replace the contents with:
 
@@ -2191,5 +2193,447 @@ going to keep it simple for now in the interest of time. We edit the template in
 </table>
 ```
 
-This works as expected. We'll later replace these read-only fields with 
-editable fields that toggle between edit and read mode.
+This works as expected. We'll later replace these read-only fields with editable
+fields that toggle between edit and read mode.
+
+# Day 9, Angular
+
+Now we'll add the editing capabilities to the product list. Each column in the
+table should be a label that toggles the edit mode for the entire row. The last
+column should include buttons to confirm or cancel the edits and these buttons
+should be activated using Enter and Escape keys pressed while a form control is
+in focus, respectively. Only one row can be edited at any given time. Cancelling
+the edits, the row reverts to its original state. This is an important detail
+that we should keep in mind.
+
+Each row has an `id` column (product ID). We can use that information to toggle
+the editing.
+
+While implementing the PATCH call (we'll circle back to this), we ran into an
+issue with CSRF token with Django. Troubleshooting this sent me running in
+circles, so I decided to simply proxy the backend at the `/api` endpoint.
+
+First, I added a `src/proxy.conf.json` file with the following contents:
+
+```json
+{
+  "/api": {
+    "target": "http://127.0.0.1:8000",
+    "secure": false,
+    "pathRewrite": {
+      "^/api": ""
+    },
+    "changeOrigin": true
+  }
+}
+```
+
+These options come from the
+[webpack dev server config](https://webpack.js.org/configuration/dev-server/#devserverproxy)
+, and what they do is:
+
+- Allow non HTTPS service
+- Remove the `/api` prefix from URLs
+- Change the origin so the requests behave as if they are made from the target
+  host
+
+Next we edit the `angular.json` config to include the proxy configuration:
+
+```json5
+{
+  "projects": {
+    // ....
+    "angular": {
+      // ....
+      "architect": {
+        // ....
+        "serve": {
+          // ....
+          "configurations": {
+            // ....
+            "development": {
+              // ....
+              "proxyConfig": "src/proxy.conf.json"
+// ....
+```
+
+Lastly, we fix the endpoint URL prefix in the `src/app/envinfo.ts`:
+
+```typescript
+export default {
+  API: '/api'
+}
+```
+
+Additionally, we also disable CORS checks on all endpoints. For this we add
+the `csrf_exempt` decorator to all product-related views. In `products/views.py`
+we make the following changes:
+
+```python
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ProductList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
+
+
+# ....
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ProductDetails(SingleObjectMixin, LoginRequiredMixin, JSONView):
+
+
+# ....
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ProductHighlightList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
+# ....
+```
+
+This 'fixed' our issues with cross-domain requests towards the backend.
+
+And now back to the Angular app.
+
+We decided that we'll use a button to represent the non-edit state. The button
+label is the current value of the cell, and clicking any of the buttons replaces
+the entire row with a series of form controls for editing the fields. Later, we
+will use CSS to remove styling form the buttons, so they appear as a normal
+cell, but we will restore the button state on focus, so that keyboard users will
+be able to get an indication that the area is clickable.
+
+We have the ability to cancel our edits. Therefore, any edits made to the cells
+should be stored in a temporary object. This object matches the
+`Product` interface we've defined at the start of the project, and excludes
+the `id` and `updated` fields from the `SavedProduct`. The inputs will be bound
+to these fields using the two-way binding. We also need a way to know which row
+is being edited. Since editing another row should automatically cancel any
+currently edited row, we will use a single property that points to the `id` of
+the row being edited. This ensures that only one row can be edited at any given
+time. We will use -1 as the `id` of "no row" since we know that database ID
+column starts with 1 and only ever increments. We could technically use 0, but
+-1 feels a bit more idiomatic (e.g., `indexOf()`
+returns -1 when there is no element).
+
+So the first thing we do is we add this logic to the products service. We edit
+the `src/app/products.service.ts` like so:
+
+```typescript
+import { Product, SavedProduct } from './entities'
+
+// ....
+export class ProductsService {
+  // ...
+  getEditorDataForProductById(productId: number): Product {
+    let product = this.productList.find(x => x.id === productId)
+    if (!product) return {
+      name: '',
+      description: '',
+      sku: '',
+      price: 0,
+      stock: 0,
+      unit: 'pc',
+    }
+    let { id, updated, ...editableProductData } = product
+    return editableProductData
+  }
+}
+```
+
+This method will be used by the component to create the editor data. If the
+`productId` parameter does not match any product (e.g., because it's -1), we
+return a blank editor object. We will also use this later for creating new
+products. If a product matches, we use all the existing data except the
+`id` and `updated` fields. We are using the rest spread to filter out the
+unnecessary fields.
+
+After the user is done editing, they will need to save the product. Therefore,
+we add that method as well:
+
+```typescript
+import { catchError, map, of, tap, throwError } from 'rxjs'
+
+// ....
+
+interface ProductPatchResponse {
+  data: SavedProduct
+}
+
+// ...
+export class ProductsService {
+  // .... 
+  saveProduct(productId: number, updatedData: Product) {
+    return this.httpClient.patch<ProductPatchResponse>(
+      `${envinfo.API}/products/${encodeURIComponent(productId)}`,
+      updatedData,
+      {
+        responseType: 'json',
+        withCredentials: true,
+      },
+    )
+      .pipe(
+        catchError(err => {
+          this.toastsService.error(
+            'The product was not updated due to a server error.')
+          console.error(err)
+          return of({ data: null })
+        }),
+        map(({ data }) => {
+          if (data == null) return
+          let index = this.productList.findIndex(x => x.id === productId)
+          this.productList[index] = data
+          return data
+        }),
+      )
+  }
+}
+```
+
+We call the `PATCH /products/:id` endpoint, and we pass it the edited product
+data. Normally, the response is `{data: SavedProduct}`. However, we replace that
+with `{data: null}` when there is an error. We also log the error and present a
+message to the user using the toasts service. When we have the updated data, we
+update the product list.
+
+Now back in `src/app/product-list/product-list.component.ts`, we make the
+necessary edits to prepare for the editing:
+
+```typescript
+// ....
+export class ProductListComponent implements OnInit {
+  // ...
+  editedProductId = -1
+  editorData = this.productsService.getEditorDataForProductById(this.editedProductId)
+
+  // ...
+  onStartEditing(productId = -1) {
+    this.editedProductId = productId
+    this.editorData = this.productsService.getEditorDataForProductById(this.editedProductId)
+  }
+}
+```
+
+First we add a `onStartEditing()` method. This method takes an optional product
+id, which defaults to `-1`. Therefore, this method also ends the edit when
+called without arguments. We will still add a separate `onCancel()`
+method for clarity:
+
+```typescript
+// ....
+export class ProductListComponent implements OnInit {
+  // ...
+  onCancel(productId = -1) {
+    this.onStartEditing()
+  }
+}
+```
+
+Finally, we add a method to confirm the edit and save the data:
+
+```typescript
+// ....
+export class ProductListComponent implements OnInit {
+  // ...
+  onConfirm() {
+    this.productsService.saveProduct(this.editedProductId, this.editorData)
+      .subscribe(result => {
+        if (result) {
+          this.onCancel()
+          this.productList = this.productsService.productList
+        }
+      })
+  }
+}
+```
+
+We should probably indicate the progress somewhere by using a flag like
+`this.saving`, but for now we'll just keep the logic as is. We invoke the
+`saveProduct()` method on the service, and once we have confirmed the result, we
+cancel the edit, and update the product list.
+
+In the template, we have a concept of repeating logic pertaining to switching
+between display and edit modes. We create a separate component to handle this
+logic:
+
+```shell
+npm run ng generate component editor-cell
+```
+
+The common part of the UI is the way in which the value is displayed using a
+button. The variable part is the actual form controls. We want this component to
+wrap around the form controls and conditionally show them depending on the
+situation.
+
+The `src/app/editor-cell/editor-cell.component.html` looks like this:
+
+```html
+
+<button (click)="toggle.emit()" [hidden]="editing"
+        [attr.aria-label]="value + ' (activate to edit)'">
+  {{value}}
+</button>
+<div [hidden]="!editing">
+  <ng-content></ng-content>
+</div>
+```
+
+Our original idea was to use the `*ngIf` directive to toggle between the two,
+but it turned out Angular doesn't make it easy when the `<ng-content>`
+placeholder is involved. There really aren't any viable options that doesn't
+require writing lots of boilerplate. Therefore, we tossed in the towel and
+decided to just use the `hidden` attribute instead. This does affect the
+performance of the app because the form controls are always shown for all rows,
+and all controls in the same column are updated together when one of them is
+edited.
+
+We use the `aria-label` attribute to clarify that the button activates the edit
+mode.
+
+This template uses a custom event emitter called `toggle`, which we'll define in
+the component class. It also takes an `editing` property as an input and also a
+value. The `<ng-content>` renders the component's children.
+
+We edit the `src/app/editor-cell/editor-cell.component.ts` and make the
+following changes:
+
+```typescript
+import { Component, EventEmitter, Input, Output } from '@angular/core'
+
+// ....
+export class EditorCellComponent {
+  @Input() editing = false
+  @Input() value: string | null = ''
+  @Output() toggle = new EventEmitter()
+}
+```
+
+We note that the use of event emitter is the idiomatic way to propagate events
+to the parent. Angular does not appear to have mechanisms for emitting or
+handling native custom events, which means that we cannot use delegated event
+handling. We have to attach the `toggle` event handler to every instance of the
+component.
+
+Finally, we edit the `src/app/product-list/product-list.component.html`:
+
+```html
+<!-- .... -->
+<table>
+  <thead>
+    <tr>
+      <th scope="col">Product ID</th>
+      <th scope="col">Name</th>
+      <th scope="col">Description</th>
+      <th scope="col">SKU</th>
+      <th scope="col">Stock</th>
+      <th scope="col">Price</th>
+      <th scope="col">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let product of productList">
+      <th scope="row">
+        {{product.id}}
+      </th>
+      <td>
+        <app-editor-cell [editing]="product.id == editedProductId"
+                         [value]="product.name"
+                         (toggle)="onStartEditing(product.id)">
+          <label>
+            <span>Name:</span>
+            <input type="text" required [(ngModel)]="editorData.name"
+                   (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
+          </label>
+        </app-editor-cell>
+      </td>
+      <td>
+        <app-editor-cell [editing]="product.id == editedProductId"
+                         [value]="product.description || '(no description)'"
+                         (toggle)="onStartEditing(product.id)">
+          <label>
+            <span>Description:</span>
+            <textarea required [(ngModel)]="editorData.description"
+                      (keydown.enter)="onConfirm()"
+                      (keydown.escape)="onCancel()"></textarea>
+          </label>
+        </app-editor-cell>
+      </td>
+      <td>
+        <app-editor-cell [editing]="product.id == editedProductId"
+                         [value]="product.sku"
+                         (toggle)="onStartEditing(product.id)">
+          <label>
+            <span>SKU:</span>
+            <input type="text" required [(ngModel)]="editorData.sku"
+                   (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
+          </label>
+        </app-editor-cell>
+      </td>
+      <td>
+        <app-editor-cell [editing]="product.id == editedProductId"
+                         [value]="product.stock + product.unit"
+                         (toggle)="onStartEditing(product.id)">
+          <fieldset>
+            <legend>Stock:</legend>
+            <label>
+              <span>Quantity:</span>
+              <input type="text" pattern="\d+" required
+                     [(ngModel)]="editorData.stock"
+                     (keydown.enter)="onConfirm()"
+                     (keydown.escape)="onCancel()">
+            </label>
+            <label>
+              <span>Unit</span>
+              <select [(ngModel)]="editorData.unit"
+                      (keydown.enter)="onConfirm()"
+                      (keydown.escape)="onCancel()">
+                <option value="kg">kg</option>
+                <option value="l">liters</option>
+                <option value="pc">pieces</option>
+                <option value="pair">pairs</option>
+              </select>
+            </label>
+          </fieldset>
+        </app-editor-cell>
+      </td>
+      <td>
+        <app-editor-cell [editing]="product.id === editedProductId"
+                         [value]="product.price / 100 | currency"
+                         (toggle)="onStartEditing(product.id)">
+          <label>
+            <span>Price (in cents):</span>
+            <input type="text" pattern="\d+" required
+                   [(ngModel)]="editorData.price"
+                   (keydown.enter)="onConfirm()"
+                   (keydown.escape)="onCancel()">
+          </label>
+        </app-editor-cell>
+      </td>
+      <td>
+        <button *ngIf="product.id !== editedProductId"
+                (click)="onStartEditing(product.id)">
+          Edit
+        </button>
+        <button *ngIf="product.id === editedProductId" (click)="onConfirm()">
+          Save
+        </button>
+        <button *ngIf="product.id === editedProductId" (click)="onCancel()">
+          Cancel
+        </button>
+      </td>
+    </tr>
+  </tbody>
+</table>
+```
+
+Most of the code should be straightforward, so we won't go into too much 
+detail here. We added the header row as we'll need it for sorting later. 
+We also added a column for the actions like edit, save and cancel. These are 
+displayed conditionally depending on whether the product is being edited or 
+not. We also added keyboard shortcuts to the inputs. Normally we would use a 
+deferred listener on the row itself, but attaching them directly to the 
+element appears to be how things are done in Angular, so we stuck to that.
+
+
+

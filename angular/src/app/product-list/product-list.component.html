@@ -1,22 +1,107 @@
 <h2>Products</h2>
 
 <table>
+  <thead>
+    <tr>
+      <th scope="col">Product ID</th>
+      <th scope="col">Name</th>
+      <th scope="col">Description</th>
+      <th scope="col">SKU</th>
+      <th scope="col">Stock</th>
+      <th scope="col">Price</th>
+      <th scope="col">Actions</th>
+    </tr>
+  </thead>
   <tbody>
     <tr *ngFor="let product of productList">
-      <td>
+      <th scope="row">
         {{product.id}}
+      </th>
+      <td>
+        <app-editor-cell [editing]="product.id == editedProductId"
+                         [value]="product.name"
+                         (toggle)="onStartEditing(product.id)">
+          <label>
+            <span>Name:</span>
+            <input type="text" required [(ngModel)]="editorData.name"
+                   (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
+          </label>
+        </app-editor-cell>
       </td>
       <td>
-        {{product.name}}
+        <app-editor-cell [editing]="product.id == editedProductId"
+                         [value]="product.description || '(no description)'"
+                         (toggle)="onStartEditing(product.id)">
+          <label>
+            <span>Description:</span>
+            <textarea required [(ngModel)]="editorData.description"
+                      (keydown.enter)="onConfirm()"
+                      (keydown.escape)="onCancel()"></textarea>
+          </label>
+        </app-editor-cell>
       </td>
       <td>
-        {{product.sku}}
+        <app-editor-cell [editing]="product.id == editedProductId"
+                         [value]="product.sku"
+                         (toggle)="onStartEditing(product.id)">
+          <label>
+            <span>SKU:</span>
+            <input type="text" required [(ngModel)]="editorData.sku"
+                   (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
+          </label>
+        </app-editor-cell>
       </td>
       <td>
-        {{product.stock}}{{product.unit}}
+        <app-editor-cell [editing]="product.id == editedProductId"
+                         [value]="product.stock + product.unit"
+                         (toggle)="onStartEditing(product.id)">
+          <fieldset>
+            <legend>Stock:</legend>
+            <label>
+              <span>Quantity:</span>
+              <input type="text" pattern="\d+" required
+                     [(ngModel)]="editorData.stock"
+                     (keydown.enter)="onConfirm()"
+                     (keydown.escape)="onCancel()">
+            </label>
+            <label>
+              <span>Unit</span>
+              <select [(ngModel)]="editorData.unit"
+                      (keydown.enter)="onConfirm()"
+                      (keydown.escape)="onCancel()">
+                <option value="kg">kg</option>
+                <option value="l">liters</option>
+                <option value="pc">pieces</option>
+                <option value="pair">pairs</option>
+              </select>
+            </label>
+          </fieldset>
+        </app-editor-cell>
       </td>
       <td>
-        {{(product.price / 100)| currency}}
+        <app-editor-cell [editing]="product.id === editedProductId"
+                         [value]="product.price / 100 | currency"
+                         (toggle)="onStartEditing(product.id)">
+          <label>
+            <span>Price (in cents):</span>
+            <input type="text" pattern="\d+" required
+                   [(ngModel)]="editorData.price"
+                   (keydown.enter)="onConfirm()"
+                   (keydown.escape)="onCancel()">
+          </label>
+        </app-editor-cell>
+      </td>
+      <td>
+        <button *ngIf="product.id !== editedProductId"
+                (click)="onStartEditing(product.id)">
+          Edit
+        </button>
+        <button *ngIf="product.id === editedProductId" (click)="onConfirm()">
+          Save
+        </button>
+        <button *ngIf="product.id === editedProductId" (click)="onCancel()">
+          Cancel
+        </button>
       </td>
     </tr>
   </tbody>
