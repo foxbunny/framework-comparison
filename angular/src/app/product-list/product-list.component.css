@@ -1,0 +1,6 @@
+[aria-sort='ascending'] button > :not(:first-child),
+[aria-sort='descending'] button > :not(:nth-child(2)),
+[aria-sort=''] button > :not(:last-child)
+{
+  display: none;
+}

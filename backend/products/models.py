@@ -8,6 +8,7 @@ class Product(models.Model):
         ('pc', 'piece'),
         ('pair', 'pair'),
     )
+    VALID_ORDER_FIELDS = ('sku', 'name', 'stock', 'price', 'updated')
 
     sku = models.CharField(max_length=28, unique=True, null=False, blank=False)
     name = models.TextField(null=False, blank=False)

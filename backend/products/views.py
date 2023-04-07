@@ -18,6 +18,15 @@ class ProductList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
     paginate_by = 40
     raise_exception = True
 
+    def get_ordering(self):
+        field = self.request.GET.get('order')
+        direction = self.request.GET.get('dir', 'asc')
+        if field not in Product.VALID_ORDER_FIELDS:
+            return
+        if direction == 'asc':
+            return field,
+        return '-' + field,
+
     def get(self, *args, **kwargs):
         self.object_list = self.get_queryset()
         ctx = self.get_context_data()
@@ -25,7 +34,7 @@ class ProductList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
             'data': [x.to_dict() for x in ctx['page_obj'].object_list],
             'page': {
                 'current': ctx['page_obj'].number,
-                'total': ctx['paginator'].count,
+                'total': ctx['paginator'].num_pages,
             }
         }
 

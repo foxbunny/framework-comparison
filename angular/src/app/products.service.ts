@@ -45,11 +45,16 @@ export class ProductsService {
     this.toastsService.error('Your session has expired. Please log in and try again.')
   }
 
-  getProductList({ page = 1 }) {
+  getProductList({ page = 1, sortBy = '', sortAsc = true }) {
+    let params = { page } as any
+    if (sortBy) {
+      params.order = sortBy
+      params.dir = sortAsc ? 'asc' : 'desc'
+    }
     return this.httpClient.get<ProductListResponse>(`${envinfo.API}/products/`, {
       responseType: 'json',
       withCredentials: true,
-      params: { page },
+      params,
     })
       .pipe(
         catchError((err: HttpErrorResponse) => {

@@ -2627,13 +2627,398 @@ Finally, we edit the `src/app/product-list/product-list.component.html`:
 </table>
 ```
 
-Most of the code should be straightforward, so we won't go into too much 
-detail here. We added the header row as we'll need it for sorting later. 
-We also added a column for the actions like edit, save and cancel. These are 
-displayed conditionally depending on whether the product is being edited or 
-not. We also added keyboard shortcuts to the inputs. Normally we would use a 
-deferred listener on the row itself, but attaching them directly to the 
-element appears to be how things are done in Angular, so we stuck to that.
+Most of the code should be straightforward, so we won't go into too much detail
+here. We added the header row as we'll need it for sorting later. We also added
+a column for the actions like edit, save and cancel. These are displayed
+conditionally depending on whether the product is being edited or not. We also
+added keyboard shortcuts to the inputs. Normally we would use a deferred
+listener on the row itself, but attaching them directly to the element appears
+to be how things are done in Angular, so we stuck to that.
 
+# Day 10, Angular
 
+Today we are working on sorting the table by arbitrary column, and pagination.
+For this, we first need a larger data set. An online service
+called [Muckaroo](https://mockaroo.com/) offers a decent set of tools for
+generating mock data, works well enough for our purposes. We fill the database
+with about a 3000 or so rows to test our integration.
+
+Before we work on the sorting and pagination, we are going to sort out one UX
+glitch that we have right now, which is that the input is not focused when the
+user enters edit mode by clicking a button. To solve this issue, we are going to
+convert the relevant inputs into variables and pass them along with the product
+id when calling `onStartEditing()`.
+
+We first modify the `onStartEditing()` method in
+`src/app/product-list/product-list.component.ts`:
+
+```typescript
+// ....
+export class ProductListComponent implements OnInit {
+  // ....
+  onStartEditing(productId = -1, control?: HTMLElement) {
+    // ...
+    requestAnimationFrame(() => control?.focus())
+  }
+
+  // ...
+}
+```
+
+Since we have had cases where `onStartEditing()` is used with no arguments, we
+cannot suddenly require the second argument. We keep backwards compatibility by
+making the `control` parameter optional. This is not a big issue since we can
+use the optional chaining operator to invoke the `focus()`
+method only when the argument is passed. We wrap that call in a
+`requestAnimationFrame()` to avoid the Enter key button firing on the input
+because it received focus before the event dispatch was completed (this is
+generally how DOM works, not Angular-specific).
+
+We edit the template in `src/app/product-list/product-list.component.html`
+to include the element in the `onStartEditing()` callback. To do this we first
+mark each input we would like to focus like so:
+
+```html
+<input #nameInput type="text" required [(ngModel)]="editorData.name"
+       (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
+```
+
+The `#nameInput` converts the input into a variable that can be used elsewhere
+in the template. Moreover, the variable is hoisted to the top of the template,
+and it is visible anywhere and everywhere.
+
+Next we change the `toggle` event callback:
+
+```html
+
+<app-editor-cell [editing]="product.id == editedProductId"
+                 [value]="product.name"
+                 (toggle)="onStartEditing(product.id, nameInput)">
+```
+
+We repeat this for all other inputs.
+
+We also change the edit button to focus the name field:
+
+```html
+
+<button *ngIf="product.id !== editedProductId"
+        (click)="onStartEditing(product.id, nameInput)">
+  Edit
+</button>
+```
+
+With these changes, the inputs will not be focused after clicking or otherwise
+activating the edit mode buttons.
+
+We can now start working on the sorting and pagination.
+
+Sorting first.
+
+For the sorting UI, we need a way to change the sorting order, and the means to
+indicate the order. The sort order can be none, ascending, and descending. We
+also want to indicate the sort order differently for different types of sorting.
+For example, alphabetic sorting should be indicated as "A to Z" and
+"Z to A" rather than "ascending" and "descending", and the numeric order should
+be indicated as "smallest to largest" and vice versa. We are not concerned with
+the appearance of these indications. We will treat the visual side of things
+once we start coding CSS.
+
+When sorting, we want to reload the product list. This is because the product
+list is paginated, and we don't have a copy of the entire database in memory to
+perform any kind of client-side sorting. We have not yet implemented sorting in
+the backend, so we will need to do that as well. This will also require some
+changes to the `getProductList()` method in the products service.
+
+To represent the sort order in the component model, we will use two fields.
+First the sort column, which will be a string field. Empty string represents no
+sorting. The second field is a boolean field that represents the sort direction.
+The second field has no null value (it is always either true or false) as we do
+not need to indicate the absence of sorting order: absence of sort column is
+enough.
+
+In the backend, we first edit the `products/models.py` to add a list of fields
+we can use to order:
+
+```python
+# ....
+
+class Product(models.Model):
+    # ....
+    VALID_ORDER_FIELDS = ('sku', 'name', 'stock', 'price', 'updated')
+```
+
+We then implement the ordering logic in the view, in `products/views.py`:
+
+```python
+# ....
+
+class ProductList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
+    # ....
+    def get_ordering(self):
+        field = self.request.GET.get('order')
+        direction = self.request.GET.get('dir', 'asc')
+        if field not in Product.VALID_ORDER_FIELDS:
+            return
+        if direction == 'asc':
+            return field
+        return '-' + field
+```
+
+The `get_ordering()` method is used by the `MutlipleObjectMixin` to specify the
+order. We obtain the order field using the `order` query string parameter, and
+the sort direction from the `dir` attribute. The latter defaults to `asc` if
+unspecified. We check if the field is valid and return
+`None` if not. Finally, we return the field with or without the `-` prefix based
+on the `direction` value.
+
+Now we can hook this up to the service in our Angular app. We edit the
+`src/app/products.service.ts` and make the following changes:
+
+```typescript
+export class ProductsService {
+  // ....
+  getProductList({ page = 1, sortBy = '', sortAsc = true }) {
+    let params = { page } as any
+    if (sortBy) {
+      params.order = sortBy
+      params.dir = sortAsc ? 'asc' : 'desc'
+    }
+    return this.httpClient.get<ProductListResponse>(`${envinfo.API}/products/`, {
+      // ....
+      params,
+    })
+  }
+}
+```
+
+We then edit `src/app/product-list/product-list.component.ts`:
+
+```typescript
+export class ProductListComponent implements OnInit {
+  // ....
+  page = 1
+  sortBy = 'updated'
+  sortAsc = false
+  
+  // ....
+
+  ngOnInit() {
+    this.route.queryParamMap.subscribe(params => {
+      this.page = Number(params.get('page') || 1)
+      this.updateProductList()
+    })
+  }
+
+  updateProductList() {
+    this.productsService.getProductList({
+      page: this.page,
+      sortBy: this.sortBy,
+      sortAsc: this.sortAsc,
+    })
+      .subscribe(() => {
+        this.productList = this.productsService.productList
+      })
+  }
+  
+  // ....
+
+  onToggleSort(column: string = '') {
+    if (this.sortBy == column) this.sortAsc = !this.sortAsc
+    else {
+      this.sortBy = column
+      this.sortAsc = true
+    }
+    this.updateProductList()
+  }
+}
+```
+
+We added three new fields to the component class. The `page` (which we still 
+don't use, but we will when we start doing pagination), and `sortBy` and 
+`sortAsc`, which match the parameters in the service.
+
+We factor out the method for updating the product list, and modify the 
+`ngOnInit()` to set the `page` field by subscribing to the query param 
+stream rather than using a snapshot of the current route. This will also 
+keep us in sync with the current page later when we integrate a paginator.
+
+Lastly, we add the `onToggleSort()` method. It takes a column label, and it 
+flips the sort order if the column is already sorted, or changes the sort 
+column.
+
+We will make one more addition to the component to make it easier to wire 
+the template up. Since we are going to use an `aria-sort` attribute on our 
+header cells, we want to move the logic to calculate its value to the 
+component, so we don't bloat the template:
+
+```typescript
+export class ProductListComponent implements OnInit {
+  // ...
+  
+  getColSort(column: string) {
+    if (column !== this.sortBy) return ''
+    return this.sortAsc ? 'ascending' : 'descending'
+  }
+}
+```
+
+Time to wire up the interface. We edit the 
+`src/app/product-list/product-list.component.html` and make the following 
+changes to sortable columns:
+
+```html
+<!-- .... --->
+<th scope="col" [attr.aria-sort]="getColSort('name')">
+  Name
+  <button (click)="onToggleSort('name')" aria-label="Change the sort order">
+    <span>A to Z</span>
+    <span>Z to A</span>
+    <span>Unsorted</span>
+  </button>
+</th>
+<!-- .... --->
+<th scope="col" [attr.aria-sort]="getColSort('sku')">
+  SKU
+  <button (click)="onToggleSort('sku')" aria-label="Change the sort order">
+    <span>A to Z</span>
+    <span>Z to A</span>
+    <span>Unsorted</span>
+  </button>
+</th>
+<th scope="col" [attr.aria-sort]="getColSort('stock')">
+  Stock
+  <button (click)="onToggleSort('stock')" aria-label="Change the sort order">
+    <span>Lowest first</span>
+    <span>Highest first</span>
+    <span>Unsorted</span>
+  </button>
+</th>
+<th scope="col" [attr.aria-sort]="getColSort('price')">
+  Price
+  <button (click)="onToggleSort('price')" aria-label="Change the sort order">
+    <span>Lowest first</span>
+    <span>Highest first</span>
+    <span>Unsorted</span>
+  </button>
+</th>
+<!-- .... -->
+```
+
+Although we will be coding CSS later, we are going to do some CSS coding now,
+to handle the display of the sort direction markers on the buttons. In 
+`src/app/product-list/product-list.component.css` we add the following code:
+
+```css
+[aria-sort='ascending'] button > :not(:first-child),
+[aria-sort='descending'] button > :not(:nth-child(2)),
+[aria-sort=''] button > :not(:last-child)
+{
+  display: none;
+}
+```
+
+With this code, we now only show the appropriate label in the button. We 
+have used the element position to select the element so that we can later 
+replace the spans with icons or whatever is appropriate.
+
+We are going to work on the paginator next.
+
+The paginator shows the "Previous" and "Next" buttons and a total number of 
+pages, and the current page as an input. This table is intended for data 
+entry, so we are fine with using a form control for pagination.
+
+We will repeat the paginator both above and below the form. Although the 
+knee-jerk reaction would be to create a component for this, the logic is too 
+simple for that purpose. We will instead simply copy/paste the code in two 
+places.
+
+Before we code the UI, though, we want to make sure the component can handle 
+page changes. For this, we will add the following to the component class:
+
+```typescript
+import { ActivatedRoute, Router } from '@angular/router'
+
+// ....
+export class ProductListComponent implements OnInit {
+  // ....
+  
+  constructor(
+    // ....
+    private router: Router,
+  ) {}
+  
+  // ....
+
+  get lastPage() {
+    return this.productsService.totalPages
+  }
+
+  get isFirstPage() {
+    return this.page === 1
+  }
+
+  get isLastPage() {
+    return this.page === this.lastPage
+  }
+
+  get previousPage() {
+    return Math.max(1, this.page - 1)
+  }
+
+  get nextPage() {
+    return Math.min(this.productsService.totalPages, this.page + 1)
+  }
+
+  onGoToPage(page: string) {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParamsHandling: 'merge',
+      queryParams: { page },
+    })
+  }
+}
+```
+
+In the template, we add the following block above and below the table:
+
+```html
+<nav>
+  <a [routerLink]="[]"
+     [queryParams]="{ page: previousPage }"
+     [hidden]="isFirstPage"
+     aria-label="Previous page"
+  >
+    Previous
+  </a>
+
+  <form (submit)="onGoToPage(pageInput.value)">
+    <label>
+      Page:
+      <input #pageInput type="number" [min]="1" [max]="lastPage" [value]="page">
+    </label>
+    <span>of {{lastPage}}</span>
+    <button>Go</button>
+  </form>
+
+  <a [routerLink]="[]"
+     [queryParams]="{ page: nextPage }"
+     [hidden]="isLastPage"
+     aria-label="Next page"
+  >
+    Next page
+  </a>
+</nav>
+```
+
+The navigation links for the previous and next page are using the Angular's 
+`[routerLink]` and `[queryParams]` bindings to handle the navigation. These 
+are the same parameters we pass to the `this.router.navigate()` call in the 
+component class. We wrap the paginator input in a form element so that we 
+have full keyboard interaction for submitting. This requires a button to 
+also be included, which is fine for now. We can always hide it using CSS if 
+we decide we don't want it.
+
+The two links are hidden at the either end of the page range using the 
+`hidden` attribute.
 

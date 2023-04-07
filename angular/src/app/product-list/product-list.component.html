@@ -1,14 +1,75 @@
 <h2>Products</h2>
 
+<nav>
+  <a [routerLink]="[]"
+     [queryParams]="{ page: previousPage }"
+     [hidden]="isFirstPage"
+     aria-label="Previous page"
+  >
+    Previous
+  </a>
+
+  <form (submit)="onGoToPage(pageInput.value)">
+    <label>
+      Page:
+      <input #pageInput type="number" [min]="1" [max]="lastPage" [value]="page">
+    </label>
+    <span>of {{lastPage}}</span>
+    <button>Go</button>
+  </form>
+
+  <a [routerLink]="[]"
+     [queryParams]="{ page: nextPage }"
+     [hidden]="isLastPage"
+     aria-label="Next page"
+  >
+    Next page
+  </a>
+</nav>
+
 <table>
   <thead>
     <tr>
       <th scope="col">Product ID</th>
-      <th scope="col">Name</th>
-      <th scope="col">Description</th>
-      <th scope="col">SKU</th>
-      <th scope="col">Stock</th>
-      <th scope="col">Price</th>
+      <th scope="col" [attr.aria-sort]="getColSort('name')">
+        Name
+        <button (click)="onToggleSort('name')"
+                aria-label="Change the sort order">
+          <span>A to Z</span>
+          <span>Z to A</span>
+          <span>Unsorted</span>
+        </button>
+      </th>
+      <th scope="col">
+        Description
+      </th>
+      <th scope="col" [attr.aria-sort]="getColSort('sku')">
+        SKU
+        <button (click)="onToggleSort('sku')"
+                aria-label="Change the sort order">
+          <span>A to Z</span>
+          <span>Z to A</span>
+          <span>Unsorted</span>
+        </button>
+      </th>
+      <th scope="col" [attr.aria-sort]="getColSort('stock')">
+        Stock
+        <button (click)="onToggleSort('stock')"
+                aria-label="Change the sort order">
+          <span>Lowest first</span>
+          <span>Highest first</span>
+          <span>Unsorted</span>
+        </button>
+      </th>
+      <th scope="col" [attr.aria-sort]="getColSort('price')">
+        Price
+        <button (click)="onToggleSort('price')"
+                aria-label="Change the sort order">
+          <span>Lowest first</span>
+          <span>Highest first</span>
+          <span>Unsorted</span>
+        </button>
+      </th>
       <th scope="col">Actions</th>
     </tr>
   </thead>
@@ -20,10 +81,10 @@
       <td>
         <app-editor-cell [editing]="product.id == editedProductId"
                          [value]="product.name"
-                         (toggle)="onStartEditing(product.id)">
+                         (toggle)="onStartEditing(product.id, nameInput)">
           <label>
             <span>Name:</span>
-            <input type="text" required [(ngModel)]="editorData.name"
+            <input #nameInput type="text" required [(ngModel)]="editorData.name"
                    (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
           </label>
         </app-editor-cell>
@@ -31,11 +92,11 @@
       <td>
         <app-editor-cell [editing]="product.id == editedProductId"
                          [value]="product.description || '(no description)'"
-                         (toggle)="onStartEditing(product.id)">
+                         (toggle)="onStartEditing(product.id, descriptionInput)">
           <label>
             <span>Description:</span>
-            <textarea required [(ngModel)]="editorData.description"
-                      (keydown.enter)="onConfirm()"
+            <textarea #descriptionInput required
+                      [(ngModel)]="editorData.description"
                       (keydown.escape)="onCancel()"></textarea>
           </label>
         </app-editor-cell>
@@ -43,10 +104,11 @@
       <td>
         <app-editor-cell [editing]="product.id == editedProductId"
                          [value]="product.sku"
-                         (toggle)="onStartEditing(product.id)">
+                         (toggle)="onStartEditing(product.id, skuInput)">
           <label>
             <span>SKU:</span>
-            <input type="text" required [(ngModel)]="editorData.sku"
+            <input #skuInput type="text" required maxlength="28"
+                   pattern="^[a-zA-Z0-9-]+$" [(ngModel)]="editorData.sku"
                    (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
           </label>
         </app-editor-cell>
@@ -54,12 +116,12 @@
       <td>
         <app-editor-cell [editing]="product.id == editedProductId"
                          [value]="product.stock + product.unit"
-                         (toggle)="onStartEditing(product.id)">
+                         (toggle)="onStartEditing(product.id, quantityInput)">
           <fieldset>
             <legend>Stock:</legend>
             <label>
               <span>Quantity:</span>
-              <input type="text" pattern="\d+" required
+              <input #quantityInput type="text" pattern="\d+" required
                      [(ngModel)]="editorData.stock"
                      (keydown.enter)="onConfirm()"
                      (keydown.escape)="onCancel()">
@@ -81,10 +143,10 @@
       <td>
         <app-editor-cell [editing]="product.id === editedProductId"
                          [value]="product.price / 100 | currency"
-                         (toggle)="onStartEditing(product.id)">
+                         (toggle)="onStartEditing(product.id, priceInput)">
           <label>
             <span>Price (in cents):</span>
-            <input type="text" pattern="\d+" required
+            <input #priceInput type="text" pattern="\d+" required
                    [(ngModel)]="editorData.price"
                    (keydown.enter)="onConfirm()"
                    (keydown.escape)="onCancel()">
@@ -93,7 +155,7 @@
       </td>
       <td>
         <button *ngIf="product.id !== editedProductId"
-                (click)="onStartEditing(product.id)">
+                (click)="onStartEditing(product.id, nameInput)">
           Edit
         </button>
         <button *ngIf="product.id === editedProductId" (click)="onConfirm()">
@@ -106,3 +168,30 @@
     </tr>
   </tbody>
 </table>
+
+<nav>
+  <a [routerLink]="[]"
+     [queryParams]="{ page: previousPage }"
+     [hidden]="isFirstPage"
+     aria-label="Previous page"
+  >
+    Previous
+  </a>
+
+  <form (submit)="onGoToPage(pageInput.value)">
+    <label>
+      Page:
+      <input #pageInput type="number" [min]="1" [max]="lastPage" [value]="page">
+    </label>
+    <span>of {{lastPage}}</span>
+    <button>Go</button>
+  </form>
+
+  <a [routerLink]="[]"
+     [queryParams]="{ page: nextPage }"
+     [hidden]="isLastPage"
+     aria-label="Next page"
+  >
+    Next page
+  </a>
+</nav>
