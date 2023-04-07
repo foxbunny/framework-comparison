@@ -9,7 +9,7 @@ class Product(models.Model):
         ('pair', 'pair'),
     )
 
-    sku = models.CharField(max_length=12, unique=True, null=False, blank=False)
+    sku = models.CharField(max_length=28, unique=True, null=False, blank=False)
     name = models.TextField(null=False, blank=False)
     description = models.TextField(blank=True, null=True)
     unit = models.CharField(max_length=4, choices=UNIT_CHOICES)
