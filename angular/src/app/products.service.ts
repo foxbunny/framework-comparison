@@ -6,6 +6,12 @@ import { Product, SavedProduct } from './entities'
 import { ToastsService } from './toasts.service'
 import envinfo from './envinfo'
 
+interface ProductListParams {
+  page: number
+  order?: string
+  dir?: string
+  q?: string
+}
 interface ProductListResponse {
   data: Array<SavedProduct>
   page: {
@@ -45,16 +51,17 @@ export class ProductsService {
     this.toastsService.error('Your session has expired. Please log in and try again.')
   }
 
-  getProductList({ page = 1, sortBy = '', sortAsc = true }) {
-    let params = { page } as any
+  getProductList({ page = 1, sortBy = '', sortAsc = true, search = '' }) {
+    let params: ProductListParams = { page }
     if (sortBy) {
       params.order = sortBy
       params.dir = sortAsc ? 'asc' : 'desc'
     }
+    if (search) params.q = search
     return this.httpClient.get<ProductListResponse>(`${envinfo.API}/products/`, {
       responseType: 'json',
       withCredentials: true,
-      params,
+      params: params as any,
     })
       .pipe(
         catchError((err: HttpErrorResponse) => {

@@ -1,4 +1,5 @@
 from django import db
+from django.db.models import Q
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import SuspiciousOperation
 from django.forms import models
@@ -26,6 +27,17 @@ class ProductList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
         if direction == 'asc':
             return field,
         return '-' + field,
+
+    def get_queryset(self):
+        q = self.request.GET.get('q')
+        qs = super().get_queryset()
+        if q is None:
+            return qs
+        return qs.filter(
+            Q(sku__startswith=q) |
+            Q(name__icontains=q) |
+            Q(description__icontains=q)
+        )
 
     def get(self, *args, **kwargs):
         self.object_list = self.get_queryset()

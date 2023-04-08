@@ -15,6 +15,7 @@ export class ProductListComponent implements OnInit {
   page = 1
   sortBy = ''
   sortAsc = true
+  search = ''
 
   constructor(
     private productsService: ProductsService,
@@ -34,6 +35,7 @@ export class ProductListComponent implements OnInit {
       page: this.page,
       sortBy: this.sortBy,
       sortAsc: this.sortAsc,
+      search: this.search,
     })
       .subscribe(() => {
         this.productList = this.productsService.productList

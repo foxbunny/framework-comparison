@@ -3179,3 +3179,147 @@ We have some CSS duplication, namely with the declaration block to which the
 With these changes, we achieve a more application-like layout where all UI
 elements are contained within the viewport. The table scrolls independently of
 the rest of the elements.
+
+We are going to add a search parameter to the product list backend endpoint, so
+that we can implement filtering. As is customary, we'll use the `q` query
+parameter for that. We'll also add a search input in the header above the table.
+
+In the backend, we edit `products/views.py` and add this method:
+
+```python
+# ....
+from django.db.models import Q
+# ....
+class ProductList(MultipleObjectMixin, LoginRequiredMixin, JSONView):
+    # ....
+    def get_queryset(self):
+        q = self.request.GET.get('q')
+        qs = super().get_queryset()
+        if q is None:
+            return qs
+        return qs.filter(
+            Q(sku__startswith=q) |
+            Q(name__icontains=q) |
+            Q(description__icontains=q)
+        )
+```
+
+This method uses the `q` parameter to perform a simple search in the `sku`,
+`name` and `description` fields.
+
+This change needs to be integrated into the products service in the Angular app
+as well, so we edit the `src/app/products.service.ts` file:
+
+```typescript
+// ....
+interface ProductListParams {
+  page: number
+  order?: string
+  dir?: string
+  q?: string
+}
+// ....
+export class ProductsService {
+  // ....
+  getProductList({ page = 1, sortBy = '', sortAsc = true, search = '' }) {
+    let params: ProductListParams = { page }
+    if (sortBy) {
+      params.order = sortBy
+      params.dir = sortAsc ? 'asc' : 'desc'
+    }
+    if (search) params.q = search
+    return this.httpClient.get<ProductListResponse>(`${envinfo.API}/products/`, {
+      // ....
+      params: params as any,
+    })
+    // ....
+  }
+  // ....
+}
+```
+
+We have defined a new interface for the product list parameters so that we can
+keep track of what is and isn't allowed before it gets out of hand. We've added
+a new parameter to the `getProductList()` method, the `search` parameter, which
+will map to the `q` query string parameter we defined in the backend.
+
+In `src/app/product-list/product-list.component.ts`, we make a similar change:
+
+```typescript
+// ....
+export class ProductListComponent implements OnInit {
+  // ....
+  search = ''
+
+  // ....
+  updateProductList() {
+    this.productsService.getProductList({
+      // ....
+      search: this.search,
+    })
+    // ....
+  }
+  // ....
+}
+```
+
+Now all we need to do is map this parameter in the template. We edit the 
+`src/app/product-list/product-list.component.html`:
+
+```html
+<!-- .... -->
+
+<div id="product-list-header">
+  <nav>
+    <!-- .... -->
+  </nav>
+
+  <form (submit)="updateProductList()">
+    <label>
+      Keyword:
+      <input type="text" [(ngModel)]="search">
+    </label>
+    <button>Search</button>
+  </form>
+</div>
+```
+
+Since the above-table area will contain both the paginator and the search form,
+we are going to wrap that into a div. This breaks the layout we've created, but
+it should be relatively easy to fix later.
+
+The form will simply update the product list on submission. There is no need to
+do anything else as the text field is mapped to the `search` field in the
+component class.
+
+Finally, we adjust the CSS.
+
+```diff
+- h2,
+- nav
++ :host > :not(#product-table)
+{
+  flex: none;
+}
+```
+
+This will ensure that changes in the first level of children under `:host` will
+all use the same style except the `#product-table` element, and we no longer
+rely on the tag names for this.
+
+Now, we also need to adjust the layout within the new `#product-list-header` 
+element.
+
+```css
+#product-list-header,
+nav
+{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5em;
+}
+```
+
+We've used this opportunity (the first horizontal flex layout) to also make the 
+paginators horizontal as they should be.

@@ -1,31 +1,41 @@
 <h2>Products</h2>
 
-<nav>
-  <a [routerLink]="[]"
-     [queryParams]="{ page: previousPage }"
-     [hidden]="isFirstPage"
-     aria-label="Previous page"
-  >
-    Previous
-  </a>
+<div id="product-list-header">
+  <nav>
+    <a [routerLink]="[]"
+      [queryParams]="{ page: previousPage }"
+      [hidden]="isFirstPage"
+      aria-label="Previous page"
+    >
+      Previous
+    </a>
 
-  <form (submit)="onGoToPage(pageInput.value)">
+    <form (submit)="onGoToPage(pageInput.value)">
+      <label>
+        Page:
+        <input #pageInput type="number" [min]="1" [max]="lastPage" [value]="page">
+      </label>
+      <span>of {{lastPage}}</span>
+      <button>Go</button>
+    </form>
+
+    <a [routerLink]="[]"
+      [queryParams]="{ page: nextPage }"
+      [hidden]="isLastPage"
+      aria-label="Next page"
+    >
+      Next page
+    </a>
+  </nav>
+
+  <form (submit)="updateProductList()">
     <label>
-      Page:
-      <input #pageInput type="number" [min]="1" [max]="lastPage" [value]="page">
+      Keyword:
+      <input type="text" [(ngModel)]="search">
     </label>
-    <span>of {{lastPage}}</span>
-    <button>Go</button>
+    <button>Search</button>
   </form>
-
-  <a [routerLink]="[]"
-     [queryParams]="{ page: nextPage }"
-     [hidden]="isLastPage"
-     aria-label="Next page"
-  >
-    Next page
-  </a>
-</nav>
+</div>
 
 <div id="product-table">
   <table>
