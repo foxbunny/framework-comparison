@@ -1,3 +1,21 @@
+:host
+{
+  display: flex;
+  flex-direction: column;
+}
+
+h2,
+nav
+{
+  flex: none;
+}
+
+#product-table
+{
+  flex: 1;
+  overflow-y: auto;
+}
+
 [aria-sort='ascending'] button > :not(:first-child),
 [aria-sort='descending'] button > :not(:nth-child(2)),
 [aria-sort=''] button > :not(:last-child)

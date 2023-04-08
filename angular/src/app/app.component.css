@@ -1,0 +1,16 @@
+:host
+{
+  height: 100vh;
+}
+
+:host,
+main
+{
+  display: flex;
+  flex-direction: column;
+}
+
+h1
+{
+  flex: none;
+}

@@ -27,147 +27,149 @@
   </a>
 </nav>
 
-<table>
-  <thead>
-    <tr>
-      <th scope="col">Product ID</th>
-      <th scope="col" [attr.aria-sort]="getColSort('name')">
-        Name
-        <button (click)="onToggleSort('name')"
-                aria-label="Change the sort order">
-          <span>A to Z</span>
-          <span>Z to A</span>
-          <span>Unsorted</span>
-        </button>
-      </th>
-      <th scope="col">
-        Description
-      </th>
-      <th scope="col" [attr.aria-sort]="getColSort('sku')">
-        SKU
-        <button (click)="onToggleSort('sku')"
-                aria-label="Change the sort order">
-          <span>A to Z</span>
-          <span>Z to A</span>
-          <span>Unsorted</span>
-        </button>
-      </th>
-      <th scope="col" [attr.aria-sort]="getColSort('stock')">
-        Stock
-        <button (click)="onToggleSort('stock')"
-                aria-label="Change the sort order">
-          <span>Lowest first</span>
-          <span>Highest first</span>
-          <span>Unsorted</span>
-        </button>
-      </th>
-      <th scope="col" [attr.aria-sort]="getColSort('price')">
-        Price
-        <button (click)="onToggleSort('price')"
-                aria-label="Change the sort order">
-          <span>Lowest first</span>
-          <span>Highest first</span>
-          <span>Unsorted</span>
-        </button>
-      </th>
-      <th scope="col">Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let product of productList">
-      <th scope="row">
-        {{product.id}}
-      </th>
-      <td>
-        <app-editor-cell [editing]="product.id == editedProductId"
-                         [value]="product.name"
-                         (toggle)="onStartEditing(product.id, nameInput)">
-          <label>
-            <span>Name:</span>
-            <input #nameInput type="text" required [(ngModel)]="editorData.name"
-                   (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
-          </label>
-        </app-editor-cell>
-      </td>
-      <td>
-        <app-editor-cell [editing]="product.id == editedProductId"
-                         [value]="product.description || '(no description)'"
-                         (toggle)="onStartEditing(product.id, descriptionInput)">
-          <label>
-            <span>Description:</span>
-            <textarea #descriptionInput required
-                      [(ngModel)]="editorData.description"
-                      (keydown.escape)="onCancel()"></textarea>
-          </label>
-        </app-editor-cell>
-      </td>
-      <td>
-        <app-editor-cell [editing]="product.id == editedProductId"
-                         [value]="product.sku"
-                         (toggle)="onStartEditing(product.id, skuInput)">
-          <label>
-            <span>SKU:</span>
-            <input #skuInput type="text" required maxlength="28"
-                   pattern="^[a-zA-Z0-9-]+$" [(ngModel)]="editorData.sku"
-                   (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
-          </label>
-        </app-editor-cell>
-      </td>
-      <td>
-        <app-editor-cell [editing]="product.id == editedProductId"
-                         [value]="product.stock + product.unit"
-                         (toggle)="onStartEditing(product.id, quantityInput)">
-          <fieldset>
-            <legend>Stock:</legend>
+<div id="product-table">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Product ID</th>
+        <th scope="col" [attr.aria-sort]="getColSort('name')">
+          Name
+          <button (click)="onToggleSort('name')"
+                  aria-label="Change the sort order">
+            <span>A to Z</span>
+            <span>Z to A</span>
+            <span>Unsorted</span>
+          </button>
+        </th>
+        <th scope="col">
+          Description
+        </th>
+        <th scope="col" [attr.aria-sort]="getColSort('sku')">
+          SKU
+          <button (click)="onToggleSort('sku')"
+                  aria-label="Change the sort order">
+            <span>A to Z</span>
+            <span>Z to A</span>
+            <span>Unsorted</span>
+          </button>
+        </th>
+        <th scope="col" [attr.aria-sort]="getColSort('stock')">
+          Stock
+          <button (click)="onToggleSort('stock')"
+                  aria-label="Change the sort order">
+            <span>Lowest first</span>
+            <span>Highest first</span>
+            <span>Unsorted</span>
+          </button>
+        </th>
+        <th scope="col" [attr.aria-sort]="getColSort('price')">
+          Price
+          <button (click)="onToggleSort('price')"
+                  aria-label="Change the sort order">
+            <span>Lowest first</span>
+            <span>Highest first</span>
+            <span>Unsorted</span>
+          </button>
+        </th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let product of productList">
+        <th scope="row">
+          {{product.id}}
+        </th>
+        <td>
+          <app-editor-cell [editing]="product.id == editedProductId"
+                          [value]="product.name"
+                          (toggle)="onStartEditing(product.id, nameInput)">
             <label>
-              <span>Quantity:</span>
-              <input #quantityInput type="text" pattern="\d+" required
-                     [(ngModel)]="editorData.stock"
-                     (keydown.enter)="onConfirm()"
-                     (keydown.escape)="onCancel()">
+              <span>Name:</span>
+              <input #nameInput type="text" required [(ngModel)]="editorData.name"
+                    (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
             </label>
+          </app-editor-cell>
+        </td>
+        <td>
+          <app-editor-cell [editing]="product.id == editedProductId"
+                          [value]="product.description || '(no description)'"
+                          (toggle)="onStartEditing(product.id, descriptionInput)">
             <label>
-              <span>Unit</span>
-              <select [(ngModel)]="editorData.unit"
+              <span>Description:</span>
+              <textarea #descriptionInput required
+                        [(ngModel)]="editorData.description"
+                        (keydown.escape)="onCancel()"></textarea>
+            </label>
+          </app-editor-cell>
+        </td>
+        <td>
+          <app-editor-cell [editing]="product.id == editedProductId"
+                          [value]="product.sku"
+                          (toggle)="onStartEditing(product.id, skuInput)">
+            <label>
+              <span>SKU:</span>
+              <input #skuInput type="text" required maxlength="28"
+                    pattern="^[a-zA-Z0-9-]+$" [(ngModel)]="editorData.sku"
+                    (keydown.enter)="onConfirm()" (keydown.escape)="onCancel()">
+            </label>
+          </app-editor-cell>
+        </td>
+        <td>
+          <app-editor-cell [editing]="product.id == editedProductId"
+                          [value]="product.stock + product.unit"
+                          (toggle)="onStartEditing(product.id, quantityInput)">
+            <fieldset>
+              <legend>Stock:</legend>
+              <label>
+                <span>Quantity:</span>
+                <input #quantityInput type="text" pattern="\d+" required
+                      [(ngModel)]="editorData.stock"
                       (keydown.enter)="onConfirm()"
                       (keydown.escape)="onCancel()">
-                <option value="kg">kg</option>
-                <option value="l">liters</option>
-                <option value="pc">pieces</option>
-                <option value="pair">pairs</option>
-              </select>
+              </label>
+              <label>
+                <span>Unit</span>
+                <select [(ngModel)]="editorData.unit"
+                        (keydown.enter)="onConfirm()"
+                        (keydown.escape)="onCancel()">
+                  <option value="kg">kg</option>
+                  <option value="l">liters</option>
+                  <option value="pc">pieces</option>
+                  <option value="pair">pairs</option>
+                </select>
+              </label>
+            </fieldset>
+          </app-editor-cell>
+        </td>
+        <td>
+          <app-editor-cell [editing]="product.id === editedProductId"
+                          [value]="product.price / 100 | currency"
+                          (toggle)="onStartEditing(product.id, priceInput)">
+            <label>
+              <span>Price (in cents):</span>
+              <input #priceInput type="text" pattern="\d+" required
+                    [(ngModel)]="editorData.price"
+                    (keydown.enter)="onConfirm()"
+                    (keydown.escape)="onCancel()">
             </label>
-          </fieldset>
-        </app-editor-cell>
-      </td>
-      <td>
-        <app-editor-cell [editing]="product.id === editedProductId"
-                         [value]="product.price / 100 | currency"
-                         (toggle)="onStartEditing(product.id, priceInput)">
-          <label>
-            <span>Price (in cents):</span>
-            <input #priceInput type="text" pattern="\d+" required
-                   [(ngModel)]="editorData.price"
-                   (keydown.enter)="onConfirm()"
-                   (keydown.escape)="onCancel()">
-          </label>
-        </app-editor-cell>
-      </td>
-      <td>
-        <button *ngIf="product.id !== editedProductId"
-                (click)="onStartEditing(product.id, nameInput)">
-          Edit
-        </button>
-        <button *ngIf="product.id === editedProductId" (click)="onConfirm()">
-          Save
-        </button>
-        <button *ngIf="product.id === editedProductId" (click)="onCancel()">
-          Cancel
-        </button>
-      </td>
-    </tr>
-  </tbody>
-</table>
+          </app-editor-cell>
+        </td>
+        <td>
+          <button *ngIf="product.id !== editedProductId"
+                  (click)="onStartEditing(product.id, nameInput)">
+            Edit
+          </button>
+          <button *ngIf="product.id === editedProductId" (click)="onConfirm()">
+            Save
+          </button>
+          <button *ngIf="product.id === editedProductId" (click)="onCancel()">
+            Cancel
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 <nav>
   <a [routerLink]="[]"

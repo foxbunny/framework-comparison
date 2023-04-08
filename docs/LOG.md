@@ -3012,13 +3012,170 @@ In the template, we add the following block above and below the table:
 ```
 
 The navigation links for the previous and next page are using the Angular's 
-`[routerLink]` and `[queryParams]` bindings to handle the navigation. These 
-are the same parameters we pass to the `this.router.navigate()` call in the 
-component class. We wrap the paginator input in a form element so that we 
-have full keyboard interaction for submitting. This requires a button to 
-also be included, which is fine for now. We can always hide it using CSS if 
-we decide we don't want it.
+`[routerLink]` and `[queryParams]` bindings to handle the navigation. These are
+the same parameters we pass to the `this.router.navigate()` call in the 
+component class. We wrap the paginator input in a form element so that we have
+full keyboard interaction for submitting. This requires a button to also be
+included, which is fine for now. We can always hide it using CSS if we decide we
+don't want it.
 
-The two links are hidden at the either end of the page range using the 
-`hidden` attribute.
+The two links are hidden at the either end of the page range using the `hidden`
+attribute.
 
+# Day 11, Angular
+
+Yesterday, we implemented the ordering and pagination. Today we are going to
+work on CSS a little and sort out the layout for the page. We want the page to
+span the height of the viewport, with the middle section (table itself)
+scrollable.
+
+We will first define some basic global reset CSS and also the layout for the
+base template. We will do this by editing the `src/styles.css` file:
+
+```css
+*, *::after, *::before
+{
+  box-sizing: border-box;
+  min-height: 0;
+}
+
+body, h1, h2, h3, h4, h5, h6, ul, li
+{
+  padding: 0;
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6, th, td, button, input, select, textarea
+{
+  font: inherit;
+}
+
+button:not(:disabled), label
+{
+  cursor: pointer;
+}
+
+body
+{
+  padding: 0;
+  font-family: sans-serif;
+}
+```
+
+The reset should be pretty self explanatory, but we will note the following.
+
+All elements and the `::after` and `::before` pseudo-elements are given a
+minimum height of 0. This helps with flexbox layout where elements that are
+larger than the flexbox will attempt to expand the flex container.
+
+All form controls are given `font: inherit` so that they inherit the font family
+and font size of the surrounding text (by default, they will use the system 
+font).
+
+We could technically style the entire app using `src/styles.css`. I personally
+see nothing wrong about that, but that's not the idiomatic approach, so we'll 
+refrain from that in this project.
+
+Now, with our reset in place, we can start creating the layout. By mistake,
+we've included the entire HTML boilerplate in the app template, so we will
+simplify `src/app/app.component.html` to just this:
+
+```html
+<h1>Product list manager</h1>
+
+<main>
+  <router-outlet></router-outlet>
+</main>
+```
+
+We are not going to wrap the H1 heading in anything yet. Since the entire
+application is contained inside `<app-root>` custom element, we are going to use
+that to set the outermost layout. In `src/app/app.component.css` we add:
+
+```css
+app-root
+{
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+```
+
+This does not have any visible effect yet, but we'll get there. We need to make
+the main heading shrink-proof so it does not collapse as the main section grows.
+
+```css
+h1 
+{
+  flex: none;
+}
+```
+
+We are going to make the main section use flex layout as well. To do that, we
+split the declaration assigned to `app-root` into two parts:
+
+```css
+:host
+{
+  height: 100vh;
+}
+
+:host,
+main
+{
+  display: flex;
+  flex-direction: column;
+}
+```
+
+Note that `:host` refers to the custom element of the component.
+
+This is as far as we need to go with the main application layout. We next move
+to `src/app/product-list/product-list.component.css`. Before we edit the CSS, we
+will wrap the table in a wrapper DIV so that it can be made scrollable. In 
+`src/app/product-list/product-list.component.html`, we make the following
+change:
+
+```html
+<!-- .... -->
+
+<div id="product-list">
+  <table>
+    <!-- ... -->
+  </table>
+</div>
+```
+
+We are using a DIV for this because it does not mark a separate section or 
+anything semantically significant. We are simply compensating for the inability
+to make the TABLE element itself scroll.
+
+The `app-product-list` custom element is the root element for this component, so 
+we'll convert that into a flex layout.
+
+```css
+:host
+{
+  display: flex;
+  flex-direction: column;
+}
+
+h2,
+nav
+{
+  flex: none;
+}
+
+#product-table
+{
+  flex: 1;
+  overflow-y: auto;
+}
+```
+
+We have some CSS duplication, namely with the declaration block to which the 
+`:host` selector is assigned. This is inevitable with scoped CSS.
+
+With these changes, we achieve a more application-like layout where all UI
+elements are contained within the viewport. The table scrolls independently of
+the rest of the elements.
